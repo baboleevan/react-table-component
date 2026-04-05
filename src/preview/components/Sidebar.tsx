@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import {NavLink, useNavigate} from 'react-router-dom'
 
 const MENU = [
   {
@@ -28,9 +28,15 @@ const MENU = [
 ]
 
 export function Sidebar() {
+  const navigate = useNavigate();
   return (
     <nav className="preview-sidebar">
-      <div className="preview-sidebar__logo">⚡ DataGrid</div>
+      <div
+          className="preview-sidebar__logo"
+          onClick={() => {
+            navigate('/');
+          }}
+      >⚡ DataGrid</div>
       {MENU.map(({ section, items }) => (
         <div key={section}>
           <div className="preview-sidebar__section-title">{section}</div>
