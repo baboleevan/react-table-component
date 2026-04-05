@@ -27,9 +27,9 @@ const WIDE_COLUMNS: ColumnType<Employee>[] = [
 ]
 
 // ──────────────────────────────────────────────
-// 데이터: 200명만 사용 (Transfer 시연용)
+// 데이터: 20명만 사용 (Transfer 시연용)
 // ──────────────────────────────────────────────
-const DEMO_DATA = EMPLOYEE_DATA.slice(0, 200)
+const DEMO_DATA = EMPLOYEE_DATA.slice(0, 20)
 
 // ──────────────────────────────────────────────
 // 코드 스니펫
