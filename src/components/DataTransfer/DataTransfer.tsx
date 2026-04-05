@@ -6,13 +6,9 @@ import './DataTransfer.scss'
 // ──────────────────────────────────────────────
 // 헬퍼
 // ──────────────────────────────────────────────
-function resolveKey<T>(
-  record: T,
-  rowKey: DataTransferProps<T>['rowKey'],
-  index: number,
-): string | number {
+function resolveKey<T>(record: T, rowKey: DataTransferProps<T>['rowKey'], index: number): string | number {
   if (typeof rowKey === 'function') return rowKey(record)
-  return (record as Record<string, unknown>)[rowKey] as string | number ?? index
+  return ((record as Record<string, unknown>)[rowKey] as string | number) ?? index
 }
 
 // ──────────────────────────────────────────────
@@ -32,11 +28,11 @@ export function DataTransfer<T = Record<string, unknown>>({
   locale,
 }: DataTransferProps<T>) {
   // ── 각 패널의 선택 state ────────────────────
-  const [leftSelected, setLeftSelected]   = useState<(string | number)[]>([])
+  const [leftSelected, setLeftSelected] = useState<(string | number)[]>([])
   const [rightSelected, setRightSelected] = useState<(string | number)[]>([])
 
   // ── 검색어 ──────────────────────────────────
-  const [leftSearch,  setLeftSearch]  = useState('')
+  const [leftSearch, setLeftSearch] = useState('')
   const [rightSearch, setRightSearch] = useState('')
 
   // ── 키보드 단축키용 ref ──────────────────────
@@ -50,10 +46,12 @@ export function DataTransfer<T = Record<string, unknown>>({
     const base = dataSource.filter((r, i) => !targetKeySet.has(resolveKey(r, rowKey, i)))
     if (!leftSearch.trim()) return base
     const q = leftSearch.toLowerCase()
-    return base.filter(r =>
-      columns.some(col => {
+    return base.filter((r) =>
+      columns.some((col) => {
         const di = col.dataIndex ?? col.key
-        return String((r as Record<string, unknown>)[di] ?? '').toLowerCase().includes(q)
+        return String((r as Record<string, unknown>)[di] ?? '')
+          .toLowerCase()
+          .includes(q)
       }),
     )
   }, [dataSource, targetKeySet, rowKey, leftSearch, columns])
@@ -62,10 +60,12 @@ export function DataTransfer<T = Record<string, unknown>>({
     const base = dataSource.filter((r, i) => targetKeySet.has(resolveKey(r, rowKey, i)))
     if (!rightSearch.trim()) return base
     const q = rightSearch.toLowerCase()
-    return base.filter(r =>
-      columns.some(col => {
+    return base.filter((r) =>
+      columns.some((col) => {
         const di = col.dataIndex ?? col.key
-        return String((r as Record<string, unknown>)[di] ?? '').toLowerCase().includes(q)
+        return String((r as Record<string, unknown>)[di] ?? '')
+          .toLowerCase()
+          .includes(q)
       }),
     )
   }, [dataSource, targetKeySet, rowKey, rightSearch, columns])
@@ -81,30 +81,37 @@ export function DataTransfer<T = Record<string, unknown>>({
   const moveToLeft = useCallback(() => {
     if (rightSelected.length === 0) return
     const moveKeys = [...rightSelected]
-    const moveSet  = new Set(moveKeys)
-    onChange(targetKeys.filter(k => !moveSet.has(k)), 'left', moveKeys)
+    const moveSet = new Set(moveKeys)
+    onChange(
+      targetKeys.filter((k) => !moveSet.has(k)),
+      'left',
+      moveKeys,
+    )
     setRightSelected([])
   }, [rightSelected, targetKeys, onChange])
 
   // ── 키보드 방향키 지원 ───────────────────────
   // → : 왼쪽 선택 항목을 오른쪽으로 이동
   // ← : 오른쪽 선택 항목을 왼쪽으로 이동
-  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    // 입력 필드 내부에서는 방향키를 가로채지 않음
-    const tag = (e.target as HTMLElement).tagName
-    if (tag === 'INPUT' || tag === 'TEXTAREA') return
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLDivElement>) => {
+      // 입력 필드 내부에서는 방향키를 가로채지 않음
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
 
-    if (e.key === 'ArrowRight' && leftSelected.length > 0) {
-      e.preventDefault()
-      moveToRight()
-    } else if (e.key === 'ArrowLeft' && rightSelected.length > 0) {
-      e.preventDefault()
-      moveToLeft()
-    }
-  }, [leftSelected.length, rightSelected.length, moveToRight, moveToLeft])
+      if (e.key === 'ArrowRight' && leftSelected.length > 0) {
+        e.preventDefault()
+        moveToRight()
+      } else if (e.key === 'ArrowLeft' && rightSelected.length > 0) {
+        e.preventDefault()
+        moveToLeft()
+      }
+    },
+    [leftSelected.length, rightSelected.length, moveToRight, moveToLeft],
+  )
 
-  const itemUnit         = locale?.itemUnit      ?? '개'
-  const notFoundContent  = locale?.notFoundContent ?? '데이터 없음'
+  const itemUnit = locale?.itemUnit ?? '개'
+  const notFoundContent = locale?.notFoundContent ?? '데이터 없음'
   const searchPlaceholder = locale?.searchPlaceholder ?? '검색...'
 
   const panelHeight = typeof height === 'number' ? `${height}px` : height
@@ -194,12 +201,8 @@ export function DataTransfer<T = Record<string, unknown>>({
         <div className="datatransfer__panel-footer">
           {selected.length > 0 ? (
             <span className="datatransfer__panel-footer--selected">
-              {selected.length}개 선택됨
-              &nbsp;
-              <button
-                className="datatransfer__clear-btn"
-                onClick={() => setSelected([])}
-              >
+              {selected.length}개 선택됨 &nbsp;
+              <button className="datatransfer__clear-btn" onClick={() => setSelected([])}>
                 선택 해제
               </button>
             </span>
@@ -221,11 +224,7 @@ export function DataTransfer<T = Record<string, unknown>>({
       tabIndex={0}
     >
       {/* 왼쪽 패널 */}
-      {renderPanel(
-        'left', titles[0],
-        leftData, leftSelected, setLeftSelected,
-        leftSearch, setLeftSearch,
-      )}
+      {renderPanel('left', titles[0], leftData, leftSelected, setLeftSelected, leftSearch, setLeftSearch)}
 
       {/* 중앙 조작 버튼 */}
       <div className="datatransfer__operation">
@@ -236,11 +235,9 @@ export function DataTransfer<T = Record<string, unknown>>({
           title={`선택한 ${leftSelected.length}개 항목을 오른쪽으로 이동 (→)`}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z"/>
+            <path d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8z" />
           </svg>
-          {leftSelected.length > 0 && (
-            <span className="datatransfer__op-badge">{leftSelected.length}</span>
-          )}
+          {leftSelected.length > 0 && <span className="datatransfer__op-badge">{leftSelected.length}</span>}
         </button>
         <button
           className="datatransfer__op-btn datatransfer__op-btn--left"
@@ -249,20 +246,14 @@ export function DataTransfer<T = Record<string, unknown>>({
           title={`선택한 ${rightSelected.length}개 항목을 왼쪽으로 이동 (←)`}
         >
           <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor">
-            <path d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z"/>
+            <path d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8z" />
           </svg>
-          {rightSelected.length > 0 && (
-            <span className="datatransfer__op-badge">{rightSelected.length}</span>
-          )}
+          {rightSelected.length > 0 && <span className="datatransfer__op-badge">{rightSelected.length}</span>}
         </button>
       </div>
 
       {/* 오른쪽 패널 */}
-      {renderPanel(
-        'right', titles[1],
-        rightData, rightSelected, setRightSelected,
-        rightSearch, setRightSearch,
-      )}
+      {renderPanel('right', titles[1], rightData, rightSelected, setRightSelected, rightSearch, setRightSearch)}
     </div>
   )
 }

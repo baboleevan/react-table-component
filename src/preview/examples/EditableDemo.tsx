@@ -6,31 +6,31 @@ import { DemoBlock } from '../components/DemoBlock'
 
 // editable 컬럼만 편집 가능하게 설정
 const makeColumns = (editable: boolean): ColumnType<Employee>[] => [
-  { key: 'id',           title: 'ID',        dataIndex: 'id',           width: 70,  fixed: 'left' },
-  { key: 'name',         title: '이름',      dataIndex: 'name',         width: 100, editable },
-  { key: 'email',        title: '이메일',    dataIndex: 'email',        width: 200, editable, ellipsis: true },
-  { key: 'phone',        title: '연락처',    dataIndex: 'phone',        width: 150, editable },
-  { key: 'dept',         title: '부서',      dataIndex: 'dept',         width: 90,  editable },
-  { key: 'team',         title: '팀',        dataIndex: 'team',         width: 90,  editable },
-  { key: 'position',     title: '직급',      dataIndex: 'position',     width: 90 },
-  { key: 'level',        title: '레벨',      dataIndex: 'level',        width: 100 },
-  { key: 'salary',       title: '연봉(만)',  dataIndex: 'salary',       width: 110, align: 'right', editable },
-  { key: 'bonus',        title: '보너스',    dataIndex: 'bonus',        width: 100, align: 'right', editable },
-  { key: 'age',          title: '나이',      dataIndex: 'age',          width: 70,  align: 'center' },
-  { key: 'gender',       title: '성별',      dataIndex: 'gender',       width: 70,  align: 'center' },
-  { key: 'city',         title: '도시',      dataIndex: 'city',         width: 90,  editable },
-  { key: 'joinDate',     title: '입사일',    dataIndex: 'joinDate',     width: 110 },
-  { key: 'contractType', title: '고용형태',  dataIndex: 'contractType', width: 100 },
-  { key: 'status',       title: '상태',      dataIndex: 'status',       width: 80 },
-  { key: 'score',        title: '점수',      dataIndex: 'score',        width: 80,  align: 'center', editable },
-  { key: 'grade',        title: '등급',      dataIndex: 'grade',        width: 70,  align: 'center', editable },
-  { key: 'manager',      title: '매니저',    dataIndex: 'manager',      width: 100 },
-  { key: 'project',      title: '프로젝트',  dataIndex: 'project',      width: 110, editable },
-  { key: 'budget',       title: '예산(만)',  dataIndex: 'budget',       width: 110, align: 'right', editable },
-  { key: 'revenue',      title: '매출(만)',  dataIndex: 'revenue',      width: 110, align: 'right' },
-  { key: 'cost',         title: '비용(만)',  dataIndex: 'cost',         width: 110, align: 'right' },
-  { key: 'profitRate',   title: '수익률(%)', dataIndex: 'profitRate',   width: 110, align: 'right' },
-  { key: 'memo',         title: '메모',      dataIndex: 'memo',         width: 180, editable, ellipsis: true, fixed: 'right' },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100, editable },
+  { key: 'email', title: '이메일', dataIndex: 'email', width: 200, editable, ellipsis: true },
+  { key: 'phone', title: '연락처', dataIndex: 'phone', width: 150, editable },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 90, editable },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 90, editable },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'level', title: '레벨', dataIndex: 'level', width: 100 },
+  { key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right', editable },
+  { key: 'bonus', title: '보너스', dataIndex: 'bonus', width: 100, align: 'right', editable },
+  { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center' },
+  { key: 'gender', title: '성별', dataIndex: 'gender', width: 70, align: 'center' },
+  { key: 'city', title: '도시', dataIndex: 'city', width: 90, editable },
+  { key: 'joinDate', title: '입사일', dataIndex: 'joinDate', width: 110 },
+  { key: 'contractType', title: '고용형태', dataIndex: 'contractType', width: 100 },
+  { key: 'status', title: '상태', dataIndex: 'status', width: 80 },
+  { key: 'score', title: '점수', dataIndex: 'score', width: 80, align: 'center', editable },
+  { key: 'grade', title: '등급', dataIndex: 'grade', width: 70, align: 'center', editable },
+  { key: 'manager', title: '매니저', dataIndex: 'manager', width: 100 },
+  { key: 'project', title: '프로젝트', dataIndex: 'project', width: 110, editable },
+  { key: 'budget', title: '예산(만)', dataIndex: 'budget', width: 110, align: 'right', editable },
+  { key: 'revenue', title: '매출(만)', dataIndex: 'revenue', width: 110, align: 'right' },
+  { key: 'cost', title: '비용(만)', dataIndex: 'cost', width: 110, align: 'right' },
+  { key: 'profitRate', title: '수익률(%)', dataIndex: 'profitRate', width: 110, align: 'right' },
+  { key: 'memo', title: '메모', dataIndex: 'memo', width: 180, editable, ellipsis: true, fixed: 'right' },
 ]
 
 const DBLCLICK_CODE = `// editMode="dblclick" (기본값) — 셀을 더블클릭해야 편집 모드 진입
@@ -65,17 +65,14 @@ function EditableTable({ editMode }: { editMode: 'dblclick' | 'click' }) {
   const [editCount, setEditCount] = useState(0)
 
   const handleCellEdit = (rowKey: string | number, colKey: string, newValue: unknown) => {
-    setData((prev) =>
-      prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
-    )
+    setData((prev) => prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)))
     setEditCount((n) => n + 1)
   }
 
   return (
     <>
       <p style={{ margin: '0 0 10px', fontSize: 13, color: 'rgba(0,0,0,.45)' }}>
-        총 편집 횟수: <strong>{editCount}</strong>회
-        &nbsp;·&nbsp;
+        총 편집 횟수: <strong>{editCount}</strong>회 &nbsp;·&nbsp;
         {editMode === 'dblclick'
           ? '💡 editable 컬럼 셀을 더블클릭하세요'
           : '💡 editable 컬럼 셀을 클릭하면 즉시 편집됩니다 (호버 시 점선 테두리)'}
@@ -105,12 +102,12 @@ export function EditableDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">편집 가능 셀 (Editable)</h1>
       <p className="demo-page__desc">
-        10,000건 × 25컬럼에서 인라인 셀 편집 성능을 확인합니다.
-        EditCell은 React.memo로 격리되어 다른 셀에 영향을 주지 않습니다.
+        10,000건 × 25컬럼에서 인라인 셀 편집 성능을 확인합니다. EditCell은 React.memo로 격리되어 다른 셀에 영향을 주지
+        않습니다.
       </p>
 
       <DemoBlock
-        title="더블클릭 편집 (editMode=&quot;dblclick&quot;)"
+        title='더블클릭 편집 (editMode="dblclick")'
         description="기본값. 셀을 더블클릭해야 편집 입력창이 나타납니다."
         code={DBLCLICK_CODE}
       >
@@ -118,7 +115,7 @@ export function EditableDemo() {
       </DemoBlock>
 
       <DemoBlock
-        title="즉시 편집 (editMode=&quot;click&quot;)"
+        title='즉시 편집 (editMode="click")'
         description="클릭 한 번으로 즉시 편집 모드 진입. editable 셀 호버 시 점선 테두리로 안내됩니다."
         code={CLICK_CODE}
       >

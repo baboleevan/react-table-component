@@ -5,30 +5,30 @@
 
 // 색상
 $grid-bg: #ffffff !default;
-$grid-border-color: #e4e6ef !default;          // 기존 #e8e8e8 → 약간 블루톤
+$grid-border-color: #e4e6ef !default; // 기존 #e8e8e8 → 약간 블루톤
 
-$grid-header-bg: #eef0f7 !default;             // 기존 #fafafa → 연한 블루그레이
-$grid-header-color: #5a6482 !default;          // 기존 rgba(0,0,0,.88) → 차분한 블루그레이
-$grid-header-font-weight: 500 !default;        // 기존 600 → 약간 가볍게
+$grid-header-bg: #eef0f7 !default; // 기존 #fafafa → 연한 블루그레이
+$grid-header-color: #5a6482 !default; // 기존 rgba(0,0,0,.88) → 차분한 블루그레이
+$grid-header-font-weight: 500 !default; // 기존 600 → 약간 가볍게
 
-$grid-cell-color: #374151 !default;            // 기존 rgba(0,0,0,.88) → 짙은 슬레이트
+$grid-cell-color: #374151 !default; // 기존 rgba(0,0,0,.88) → 짙은 슬레이트
 $grid-cell-bg: transparent !default;
 
-$grid-row-hover-bg: #f4f6fb !default;          // 기존 #fafafa → 연한 블루그레이
-$grid-row-focus-bg: #e8eeff !default;          // 연한 파랑
-$grid-row-selected-bg: #dce8fd !default;       // 선택 행: 블루 틴트
-$grid-row-stripe-bg: #f8f9fc !default;         // 줄무늬: 극히 연한 블루그레이
+$grid-row-hover-bg: #f4f6fb !default; // 기존 #fafafa → 연한 블루그레이
+$grid-row-focus-bg: #e8eeff !default; // 연한 파랑
+$grid-row-selected-bg: #dce8fd !default; // 선택 행: 블루 틴트
+$grid-row-stripe-bg: #f8f9fc !default; // 줄무늬: 극히 연한 블루그레이
 
 $grid-edit-border-color: #1677ff !default;
 $grid-edit-bg: #ffffff !default;
-$grid-cell-dirty-bg: #fffbe6 !default;            // 편집된 셀: 연한 노란색
+$grid-cell-dirty-bg: #fffbe6 !default; // 편집된 셀: 연한 노란색
 
-$grid-font-size: 13px !default;                // 기존 14px → 좀 더 컴팩트
+$grid-font-size: 13px !default; // 기존 14px → 좀 더 컴팩트
 $grid-line-height: 1.5715 !default;
-$grid-cell-padding-v: 10px !default;           // 기존 12px → 더 촘촘하게
-$grid-cell-padding-h: 14px !default;           // 기존 16px
+$grid-cell-padding-v: 10px !default; // 기존 12px → 더 촘촘하게
+$grid-cell-padding-h: 14px !default; // 기존 16px
 
 $grid-scrollbar-width: 6px !default;
-$grid-scrollbar-color: #c8cdd8 !default;       // 기존 #d9d9d9 → 블루톤
+$grid-scrollbar-color: #c8cdd8 !default; // 기존 #d9d9d9 → 블루톤
 
 $grid-loading-overlay-bg: rgba(255, 255, 255, 0.7) !default;

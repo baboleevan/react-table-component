@@ -8,6 +8,8 @@
       "Bash(source ~/.nvm/nvm.sh)",
       "Bash(nvm use:*)",
       "Bash(npm run:*)",
+      "Bash(npm install:*)",
+      "Bash(npm build:*)",
       "mcp__Claude_Preview__preview_start",
       "Bash(chmod +x /Users/leevan/github/react-table-component/.claude/start-dev.sh)"
     ]

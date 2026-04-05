@@ -8,16 +8,16 @@ import { DemoBlock } from '../components/DemoBlock'
 // 컬럼 정의
 // ──────────────────────────────────────────────
 const columns: ColumnType<Employee>[] = [
-  { key: 'id',       title: 'ID',       dataIndex: 'id',       width: 65,  align: 'center' },
-  { key: 'name',     title: '이름',     dataIndex: 'name',     width: 100 },
-  { key: 'dept',     title: '부서',     dataIndex: 'dept',     width: 90 },
-  { key: 'team',     title: '팀',       dataIndex: 'team',     width: 90 },
-  { key: 'position', title: '직급',     dataIndex: 'position', width: 90 },
-  { key: 'level',    title: '레벨',     dataIndex: 'level',    width: 100 },
-  { key: 'salary',   title: '연봉(만)', dataIndex: 'salary',   width: 110, align: 'right' },
-  { key: 'email',    title: '이메일',   dataIndex: 'email',    width: 200, ellipsis: true },
-  { key: 'city',     title: '도시',     dataIndex: 'city',     width: 90 },
-  { key: 'status',   title: '상태',     dataIndex: 'status',   width: 80  },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 65, align: 'center' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100 },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 90 },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'level', title: '레벨', dataIndex: 'level', width: 100 },
+  { key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right' },
+  { key: 'email', title: '이메일', dataIndex: 'email', width: 200, ellipsis: true },
+  { key: 'city', title: '도시', dataIndex: 'city', width: 90 },
+  { key: 'status', title: '상태', dataIndex: 'status', width: 80 },
 ]
 
 // ──────────────────────────────────────────────
@@ -76,17 +76,19 @@ function RowCard({ row, label }: { row: Employee | null; label: string }) {
     <div style={{ ...cardStyle, borderColor: '#1677ff', background: '#f0f7ff' }}>
       <div style={{ fontSize: 12, color: '#1677ff', marginBottom: 6, fontWeight: 600 }}>{label}</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px 16px', fontSize: 13 }}>
-        {([
-          ['ID',     row.id],
-          ['이름',   row.name],
-          ['부서',   row.dept],
-          ['팀',     row.team],
-          ['직급',   row.position],
-          ['레벨',   row.level],
-          ['연봉',   `${Number(row.salary).toLocaleString()}만`],
-          ['도시',   row.city],
-          ['상태',   row.status],
-        ] as [string, unknown][]).map(([k, v]) => (
+        {(
+          [
+            ['ID', row.id],
+            ['이름', row.name],
+            ['부서', row.dept],
+            ['팀', row.team],
+            ['직급', row.position],
+            ['레벨', row.level],
+            ['연봉', `${Number(row.salary).toLocaleString()}만`],
+            ['도시', row.city],
+            ['상태', row.status],
+          ] as [string, unknown][]
+        ).map(([k, v]) => (
           <div key={k}>
             <span style={{ color: 'rgba(0,0,0,.45)' }}>{k}: </span>
             <strong>{String(v)}</strong>
@@ -112,7 +114,7 @@ const cardStyle: React.CSSProperties = {
 export function FocusedRowDemo() {
   const [focusedRow1, setFocusedRow1] = useState<Employee | null>(null)
   const [focusedRow2, setFocusedRow2] = useState<Employee | null>(null)
-  const [clickedRow2, setClickedRow2]  = useState<Employee | null>(null)
+  const [clickedRow2, setClickedRow2] = useState<Employee | null>(null)
   const [focusedRow3, setFocusedRow3] = useState<Employee | null>(null)
   const [focusHistory, setFocusHistory] = useState<string[]>([])
 
@@ -120,8 +122,8 @@ export function FocusedRowDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">포커스된 행 추적 (onFocusedRowChange)</h1>
       <p className="demo-page__desc">
-        <code>onFocusedRowChange</code> prop으로 현재 포커스된 행을 부모 state에서 관리합니다.
-        행 클릭과 키보드 ↑↓ 이동 모두에서 콜백이 발생합니다.
+        <code>onFocusedRowChange</code> prop으로 현재 포커스된 행을 부모 state에서 관리합니다. 행 클릭과 키보드 ↑↓ 이동
+        모두에서 콜백이 발생합니다.
       </p>
 
       {/* 기본 사용 */}
@@ -185,10 +187,7 @@ export function FocusedRowDemo() {
               rowKey="id"
               onFocusedRowChange={(record, index) => {
                 setFocusedRow3(record)
-                setFocusHistory(prev => [
-                  `#${index + 1} ${record.name} (${record.dept})`,
-                  ...prev.slice(0, 9),
-                ])
+                setFocusHistory((prev) => [`#${index + 1} ${record.name} (${record.dept})`, ...prev.slice(0, 9)])
               }}
               pagination={{ pageSize: 30 }}
             />
@@ -198,20 +197,26 @@ export function FocusedRowDemo() {
           <div style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* 상세 정보 */}
             <div style={{ border: '1px solid #e4e6ef', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ padding: '8px 12px', background: '#eef0f7', fontWeight: 600, fontSize: 13 }}>
-                직원 상세
-              </div>
+              <div style={{ padding: '8px 12px', background: '#eef0f7', fontWeight: 600, fontSize: 13 }}>직원 상세</div>
               {focusedRow3 ? (
                 <div style={{ padding: '10px 12px', fontSize: 13 }}>
                   {[
-                    ['이름',  focusedRow3.name],
-                    ['부서',  focusedRow3.dept],
-                    ['팀',    focusedRow3.team],
-                    ['직급',  focusedRow3.position],
-                    ['레벨',  focusedRow3.level],
-                    ['연봉',  `${Number(focusedRow3.salary).toLocaleString()}만`],
+                    ['이름', focusedRow3.name],
+                    ['부서', focusedRow3.dept],
+                    ['팀', focusedRow3.team],
+                    ['직급', focusedRow3.position],
+                    ['레벨', focusedRow3.level],
+                    ['연봉', `${Number(focusedRow3.salary).toLocaleString()}만`],
                   ].map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <div
+                      key={k}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '3px 0',
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                    >
                       <span style={{ color: 'rgba(0,0,0,.45)' }}>{k}</span>
                       <strong>{v}</strong>
                     </div>
@@ -236,20 +241,23 @@ export function FocusedRowDemo() {
               <div style={{ padding: '6px 0', maxHeight: 200, overflowY: 'auto' }}>
                 {focusHistory.length === 0 ? (
                   <div style={{ padding: '8px 12px', fontSize: 12, color: 'rgba(0,0,0,.3)' }}>없음</div>
-                ) : focusHistory.map((h, i) => (
-                  <div
-                    key={i}
-                    style={{
-                      padding: '4px 12px',
-                      fontSize: 12,
-                      color: i === 0 ? '#1677ff' : 'rgba(0,0,0,.6)',
-                      fontWeight: i === 0 ? 600 : 400,
-                      borderBottom: '1px solid #f5f5f5',
-                    }}
-                  >
-                    {i === 0 && '▶ '}{h}
-                  </div>
-                ))}
+                ) : (
+                  focusHistory.map((h, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: 12,
+                        color: i === 0 ? '#1677ff' : 'rgba(0,0,0,.6)',
+                        fontWeight: i === 0 ? 600 : 400,
+                        borderBottom: '1px solid #f5f5f5',
+                      }}
+                    >
+                      {i === 0 && '▶ '}
+                      {h}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -261,7 +269,13 @@ export function FocusedRowDemo() {
 
 function actionBtn(bg: string): React.CSSProperties {
   return {
-    flex: 1, padding: '4px 0', background: bg, color: '#fff',
-    border: 'none', borderRadius: 4, cursor: 'pointer', fontSize: 12,
+    flex: 1,
+    padding: '4px 0',
+    background: bg,
+    color: '#fff',
+    border: 'none',
+    borderRadius: 4,
+    cursor: 'pointer',
+    fontSize: 12,
   }
 }

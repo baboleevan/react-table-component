@@ -60,29 +60,29 @@ export function GroupHeaderResizeDemo() {
       key: 'personal',
       title: '개인 정보',
       children: [
-        { key: 'id',     title: 'ID',   dataIndex: 'id',     width: 70,  align: 'center' },
-        { key: 'name',   title: '이름', dataIndex: 'name',   width: 110 },
-        { key: 'age',    title: '나이', dataIndex: 'age',    width: 70,  align: 'center' },
-        { key: 'gender', title: '성별', dataIndex: 'gender', width: 70,  align: 'center' },
-        { key: 'city',   title: '도시', dataIndex: 'city',   width: 90 },
+        { key: 'id', title: 'ID', dataIndex: 'id', width: 70, align: 'center' },
+        { key: 'name', title: '이름', dataIndex: 'name', width: 110 },
+        { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center' },
+        { key: 'gender', title: '성별', dataIndex: 'gender', width: 70, align: 'center' },
+        { key: 'city', title: '도시', dataIndex: 'city', width: 90 },
       ],
     },
     {
       key: 'affiliation',
       title: '소속 정보',
       children: [
-        { key: 'dept',     title: '부서', dataIndex: 'dept',     width: 90 },
-        { key: 'team',     title: '팀',   dataIndex: 'team',     width: 90 },
+        { key: 'dept', title: '부서', dataIndex: 'dept', width: 90 },
+        { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
         { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
-        { key: 'level',    title: '레벨', dataIndex: 'level',    width: 100 },
+        { key: 'level', title: '레벨', dataIndex: 'level', width: 100 },
       ],
     },
     {
       key: 'salary_info',
       title: '급여 정보',
       children: [
-        { key: 'salary',     title: '연봉(만)', dataIndex: 'salary',     width: 110, align: 'right', sorter: true },
-        { key: 'bonus',      title: '보너스',   dataIndex: 'bonus',      width: 100, align: 'right' },
+        { key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right', sorter: true },
+        { key: 'bonus', title: '보너스', dataIndex: 'bonus', width: 100, align: 'right' },
         { key: 'profitRate', title: '수익률(%)', dataIndex: 'profitRate', width: 110, align: 'right' },
       ],
     },
@@ -90,12 +90,12 @@ export function GroupHeaderResizeDemo() {
       key: 'evaluation',
       title: '평가',
       children: [
-        { key: 'score', title: '점수', dataIndex: 'score', width: 80,  align: 'center', sorter: true },
-        { key: 'grade', title: '등급', dataIndex: 'grade', width: 70,  align: 'center' },
+        { key: 'score', title: '점수', dataIndex: 'score', width: 80, align: 'center', sorter: true },
+        { key: 'grade', title: '등급', dataIndex: 'grade', width: 70, align: 'center' },
       ],
     },
     { key: 'project', title: '프로젝트', dataIndex: 'project', width: 110 },
-    { key: 'memo',    title: '메모',     dataIndex: 'memo',    width: 180, ellipsis: true },
+    { key: 'memo', title: '메모', dataIndex: 'memo', width: 180, ellipsis: true },
   ]
 
   // ── 리사이즈 컬럼 정의 ──────────────────────
@@ -204,8 +204,7 @@ export function GroupHeaderResizeDemo() {
       <h1 className="demo-page__title">그룹 헤더 &amp; 헤더 리사이즈</h1>
       <p className="demo-page__desc">
         <code>children</code>으로 컬럼 계층(그룹 헤더)을 구성하고,
-        <code>resizable</code> / <code>minWidth</code> / <code>maxWidth</code>로
-        헤더 드래그 리사이즈를 제어합니다.
+        <code>resizable</code> / <code>minWidth</code> / <code>maxWidth</code>로 헤더 드래그 리사이즈를 제어합니다.
       </p>
 
       {/* 그룹 헤더 예제 */}
@@ -237,9 +236,7 @@ export function GroupHeaderResizeDemo() {
         code={RESIZE_CODE}
       >
         <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          부서·등급 컬럼은 리사이즈 비활성화 |
-          이름 컬럼: 80~300px |
-          이메일 컬럼: 100~400px
+          부서·등급 컬럼은 리사이즈 비활성화 | 이름 컬럼: 80~300px | 이메일 컬럼: 100~400px
         </p>
         <div style={{ height: 500 }}>
           <DataGrid<Employee>

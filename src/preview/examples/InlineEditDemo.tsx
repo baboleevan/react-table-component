@@ -9,16 +9,21 @@ import './InlineEditDemo.scss'
 // 재사용 에디터 컴포넌트 (CustomEditorDemo와 동일)
 // ──────────────────────────────────────────────
 
-const DEPT_OPTIONS   = ['개발','디자인','기획','마케팅','QA','인프라','데이터','보안']
-const LEVEL_OPTIONS  = ['Junior','Mid','Senior','Lead','Principal']
-const GRADE_OPTIONS  = ['S','A','B','C','D']
-const STATUS_OPTIONS = ['재직','휴직','수습','파견']
+const DEPT_OPTIONS = ['개발', '디자인', '기획', '마케팅', 'QA', '인프라', '데이터', '보안']
+const LEVEL_OPTIONS = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal']
+const GRADE_OPTIONS = ['S', 'A', 'B', 'C', 'D']
+const STATUS_OPTIONS = ['재직', '휴직', '수습', '파견']
 
 function SelectCell({
-  value, options, onCommit, onCancel,
+  value,
+  options,
+  onCommit,
+  onCancel,
 }: {
-  value: unknown; options: string[]
-  onCommit: (v: unknown) => void; onCancel: () => void
+  value: unknown
+  options: string[]
+  onCommit: (v: unknown) => void
+  onCancel: () => void
 }) {
   return (
     <select
@@ -28,7 +33,11 @@ function SelectCell({
       onBlur={onCancel}
       onKeyDown={(e) => e.key === 'Escape' && onCancel()}
     >
-      {options.map((o) => <option key={o} value={o}>{o}</option>)}
+      {options.map((o) => (
+        <option key={o} value={o}>
+          {o}
+        </option>
+      ))}
     </select>
   )
 }
@@ -84,49 +93,61 @@ export function InlineEditDemo() {
   const [data, setData] = useState<Employee[]>(EMPLOYEE_DATA.slice(0, 50))
 
   const handleCellEdit = (rowKey: string | number, colKey: string, newValue: unknown) => {
-    setData((prev) =>
-      prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
-    )
+    setData((prev) => prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)))
   }
 
   // ── 기본 텍스트 inline 컬럼 ──────────────────
   const basicColumns: ColumnType<Employee>[] = [
-    { key: 'id',       title: 'ID',      dataIndex: 'id',       width: 60,  align: 'center' },
-    { key: 'name',     title: '이름',    dataIndex: 'name',     width: 120, editable: true },
-    { key: 'email',    title: '이메일',  dataIndex: 'email',    width: 200, editable: true, ellipsis: true },
-    { key: 'age',      title: '나이',    dataIndex: 'age',      width: 70,  align: 'center', editable: true },
-    { key: 'city',     title: '도시',    dataIndex: 'city',     width: 100, editable: true },
-    { key: 'project',  title: '프로젝트', dataIndex: 'project', width: 130, editable: true },
-    { key: 'memo',     title: '메모',    dataIndex: 'memo',     width: 220, editable: true, ellipsis: true },
+    { key: 'id', title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
+    { key: 'name', title: '이름', dataIndex: 'name', width: 120, editable: true },
+    { key: 'email', title: '이메일', dataIndex: 'email', width: 200, editable: true, ellipsis: true },
+    { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center', editable: true },
+    { key: 'city', title: '도시', dataIndex: 'city', width: 100, editable: true },
+    { key: 'project', title: '프로젝트', dataIndex: 'project', width: 130, editable: true },
+    { key: 'memo', title: '메모', dataIndex: 'memo', width: 220, editable: true, ellipsis: true },
   ]
 
   // ── Select inline 컬럼 ───────────────────────
   const selectColumns: ColumnType<Employee>[] = [
-    { key: 'id',       title: 'ID',     dataIndex: 'id',       width: 60,  align: 'center' },
-    { key: 'name',     title: '이름',   dataIndex: 'name',     width: 110 },
+    { key: 'id', title: 'ID', dataIndex: 'id', width: 60, align: 'center' },
+    { key: 'name', title: '이름', dataIndex: 'name', width: 110 },
     {
-      key: 'dept', title: '부서', dataIndex: 'dept', width: 120,
+      key: 'dept',
+      title: '부서',
+      dataIndex: 'dept',
+      width: 120,
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'level', title: '레벨', dataIndex: 'level', width: 120,
+      key: 'level',
+      title: '레벨',
+      dataIndex: 'level',
+      width: 120,
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'grade', title: '등급', dataIndex: 'grade', width: 110, align: 'center',
+      key: 'grade',
+      title: '등급',
+      dataIndex: 'grade',
+      width: 110,
+      align: 'center',
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'status', title: '재직여부', dataIndex: 'status', width: 120, align: 'center',
+      key: 'status',
+      title: '재직여부',
+      dataIndex: 'status',
+      width: 120,
+      align: 'center',
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={STATUS_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
@@ -140,17 +161,23 @@ export function InlineEditDemo() {
 
   // ── 혼합 inline 컬럼 (number + select + text) ──
   const mixedColumns: ColumnType<Employee>[] = [
-    { key: 'id',   title: 'ID',   dataIndex: 'id',   width: 60,  align: 'center', fixed: 'left' },
-    { key: 'name', title: '이름', dataIndex: 'name', width: 110, editable: true,  fixed: 'left' },
+    { key: 'id', title: 'ID', dataIndex: 'id', width: 60, align: 'center', fixed: 'left' },
+    { key: 'name', title: '이름', dataIndex: 'name', width: 110, editable: true, fixed: 'left' },
     {
-      key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 130, align: 'right',
+      key: 'salary',
+      title: '연봉(만)',
+      dataIndex: 'salary',
+      width: 130,
+      align: 'right',
       editable: true,
       renderEditor: (value, _r, _i, onCommit) => (
         <input
           className="inline-demo-number"
           type="number"
           defaultValue={Number(value)}
-          min={1000} max={20000} step={100}
+          min={1000}
+          max={20000}
+          step={100}
           onBlur={(e) => onCommit(Number(e.target.value))}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onCommit(Number((e.target as HTMLInputElement).value))
@@ -159,14 +186,20 @@ export function InlineEditDemo() {
       ),
     },
     {
-      key: 'bonus', title: '보너스', dataIndex: 'bonus', width: 110, align: 'right',
+      key: 'bonus',
+      title: '보너스',
+      dataIndex: 'bonus',
+      width: 110,
+      align: 'right',
       editable: true,
       renderEditor: (value, _r, _i, onCommit) => (
         <input
           className="inline-demo-number"
           type="number"
           defaultValue={Number(value)}
-          min={0} max={5000} step={50}
+          min={0}
+          max={5000}
+          step={50}
           onBlur={(e) => onCommit(Number(e.target.value))}
           onKeyDown={(e) => {
             if (e.key === 'Enter') onCommit(Number((e.target as HTMLInputElement).value))
@@ -175,28 +208,42 @@ export function InlineEditDemo() {
       ),
     },
     {
-      key: 'dept', title: '부서', dataIndex: 'dept', width: 120,
+      key: 'dept',
+      title: '부서',
+      dataIndex: 'dept',
+      width: 120,
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'level', title: '레벨', dataIndex: 'level', width: 120,
+      key: 'level',
+      title: '레벨',
+      dataIndex: 'level',
+      width: 120,
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'grade', title: '등급', dataIndex: 'grade', width: 100, align: 'center',
+      key: 'grade',
+      title: '등급',
+      dataIndex: 'grade',
+      width: 100,
+      align: 'center',
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
     {
-      key: 'status', title: '재직여부', dataIndex: 'status', width: 120, align: 'center',
+      key: 'status',
+      title: '재직여부',
+      dataIndex: 'status',
+      width: 120,
+      align: 'center',
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={STATUS_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
@@ -206,10 +253,13 @@ export function InlineEditDemo() {
         return <span style={{ color: colors[v as string] ?? '#000', fontWeight: 500 }}>{v as string}</span>
       },
     },
-    { key: 'age',     title: '나이',    dataIndex: 'age',     width: 70,  align: 'center', editable: true },
-    { key: 'city',    title: '도시',    dataIndex: 'city',    width: 100, editable: true },
+    { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center', editable: true },
+    { key: 'city', title: '도시', dataIndex: 'city', width: 100, editable: true },
     {
-      key: 'joinDate', title: '입사일', dataIndex: 'joinDate', width: 150,
+      key: 'joinDate',
+      title: '입사일',
+      dataIndex: 'joinDate',
+      width: 150,
       editable: true,
       renderEditor: (value, _r, _i, onCommit, onCancel) => (
         <input
@@ -223,7 +273,7 @@ export function InlineEditDemo() {
       ),
     },
     { key: 'project', title: '프로젝트', dataIndex: 'project', width: 130, editable: true },
-    { key: 'memo',    title: '메모',    dataIndex: 'memo',    width: 200, editable: true, ellipsis: true },
+    { key: 'memo', title: '메모', dataIndex: 'memo', width: 200, editable: true, ellipsis: true },
   ]
 
   const commonPagination = {
@@ -249,8 +299,8 @@ export function InlineEditDemo() {
         code={INLINE_BASIC_CODE}
       >
         <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          이름 / 이메일 / 나이 / 도시 / 프로젝트 / 메모 셀이 즉시 편집 가능 &nbsp;|&nbsp;
-          Tab → 다음 셀, Shift+Tab → 이전 셀
+          이름 / 이메일 / 나이 / 도시 / 프로젝트 / 메모 셀이 즉시 편집 가능 &nbsp;|&nbsp; Tab → 다음 셀, Shift+Tab →
+          이전 셀
         </p>
         <div style={{ height: 400 }}>
           <DataGrid<Employee>
@@ -271,8 +321,7 @@ export function InlineEditDemo() {
         code={INLINE_SELECT_CODE}
       >
         <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          부서 / 레벨 / 등급 / 재직여부가 select로 항상 노출 &nbsp;|&nbsp;
-          Tab으로 다음 셀 이동
+          부서 / 레벨 / 등급 / 재직여부가 select로 항상 노출 &nbsp;|&nbsp; Tab으로 다음 셀 이동
         </p>
         <div style={{ height: 400 }}>
           <DataGrid<Employee>
@@ -293,9 +342,7 @@ export function InlineEditDemo() {
         code={INLINE_MIXED_CODE}
       >
         <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          연봉·보너스 = number &nbsp;|&nbsp;
-          부서·레벨·등급·재직여부 = select &nbsp;|&nbsp;
-          입사일 = date &nbsp;|&nbsp;
+          연봉·보너스 = number &nbsp;|&nbsp; 부서·레벨·등급·재직여부 = select &nbsp;|&nbsp; 입사일 = date &nbsp;|&nbsp;
           나이·도시·프로젝트·메모 = text
         </p>
         <div style={{ height: 500 }}>

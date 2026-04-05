@@ -17,9 +17,7 @@ export function DemoBlock({ title, description, code, children, previewClassName
         <h3>{title}</h3>
         {description && <p>{description}</p>}
       </div>
-      <div className={`demo-block__preview ${previewClassName ?? ''}`}>
-        {children}
-      </div>
+      <div className={`demo-block__preview ${previewClassName ?? ''}`}>{children}</div>
       <div className="demo-block__code-toggle" onClick={() => setShowCode(!showCode)}>
         <span>{showCode ? '▲' : '▼'}</span>
         {showCode ? '소스 코드 숨기기' : '소스 코드 보기'}

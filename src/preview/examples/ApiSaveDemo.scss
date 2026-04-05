@@ -25,7 +25,10 @@
     background: #fff;
     color: rgba(0, 0, 0, 0.65);
 
-    &:hover { border-color: #1677ff; color: #1677ff; }
+    &:hover {
+      border-color: #1677ff;
+      color: #1677ff;
+    }
   }
 
   &--primary {
@@ -33,9 +36,16 @@
     border-color: #1677ff;
     color: #fff;
 
-    &:hover:not(:disabled) { background: #4096ff; }
-    &:disabled { opacity: 0.5; cursor: not-allowed; }
-    &.loading { background: #69b1ff; }
+    &:hover:not(:disabled) {
+      background: #4096ff;
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    &.loading {
+      background: #69b1ff;
+    }
   }
 }
 
@@ -46,10 +56,22 @@
   padding: 4px 10px;
   border-radius: 4px;
 
-  &--idle    { color: rgba(0, 0, 0, 0.45); background: #f5f5f5; }
-  &--saving  { color: #fa8c16; background: #fff7e6; }
-  &--success { color: #52c41a; background: #f6ffed; }
-  &--error   { color: #ff4d4f; background: #fff2f0; }
+  &--idle {
+    color: rgba(0, 0, 0, 0.45);
+    background: #f5f5f5;
+  }
+  &--saving {
+    color: #fa8c16;
+    background: #fff7e6;
+  }
+  &--success {
+    color: #52c41a;
+    background: #f6ffed;
+  }
+  &--error {
+    color: #ff4d4f;
+    background: #fff2f0;
+  }
 }
 
 .api-demo-log {

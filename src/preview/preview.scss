@@ -196,7 +196,9 @@
     color: rgba(0, 0, 0, 0.45);
     user-select: none;
 
-    &:hover { color: #1677ff; }
+    &:hover {
+      color: #1677ff;
+    }
   }
 
   &__code {

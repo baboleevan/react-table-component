@@ -23,11 +23,7 @@ export interface DataTransferProps<T = Record<string, unknown>> {
    * @param direction      이동 방향 ('right' | 'left')
    * @param moveKeys       실제로 이동된 key 배열
    */
-  onChange: (
-    nextTargetKeys: (string | number)[],
-    direction: 'right' | 'left',
-    moveKeys: (string | number)[],
-  ) => void
+  onChange: (nextTargetKeys: (string | number)[], direction: 'right' | 'left', moveKeys: (string | number)[]) => void
 
   /** 컬럼 정의 */
   columns: ColumnType<T>[]

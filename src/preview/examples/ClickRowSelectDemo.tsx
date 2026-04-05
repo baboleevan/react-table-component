@@ -8,14 +8,14 @@ import { DemoBlock } from '../components/DemoBlock'
 // 컬럼 정의
 // ──────────────────────────────────────────────
 const columns: ColumnType<Employee>[] = [
-  { key: 'id',       title: 'ID',       dataIndex: 'id',       width: 65,  align: 'center' },
-  { key: 'name',     title: '이름',     dataIndex: 'name',     width: 100 },
-  { key: 'dept',     title: '부서',     dataIndex: 'dept',     width: 90 },
-  { key: 'team',     title: '팀',       dataIndex: 'team',     width: 90 },
-  { key: 'position', title: '직급',     dataIndex: 'position', width: 90 },
-  { key: 'level',    title: '레벨',     dataIndex: 'level',    width: 100 },
-  { key: 'salary',   title: '연봉(만)', dataIndex: 'salary',   width: 110, align: 'right' },
-  { key: 'status',   title: '상태',     dataIndex: 'status',   width: 80 },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 65, align: 'center' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100 },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 90 },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'level', title: '레벨', dataIndex: 'level', width: 100 },
+  { key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right' },
+  { key: 'status', title: '상태', dataIndex: 'status', width: 80 },
 ]
 
 // ──────────────────────────────────────────────
@@ -79,15 +79,15 @@ export function ClickRowSelectDemo() {
   const [radioKey, setRadioKey] = useState<string | number | null>(null)
 
   // 복합 데모 (checkbox + 상세 패널)
-  const [comboKeys, setComboKeys]     = useState<(string | number)[]>([])
-  const [detailRow, setDetailRow]     = useState<Employee | null>(null)
+  const [comboKeys, setComboKeys] = useState<(string | number)[]>([])
+  const [detailRow, setDetailRow] = useState<Employee | null>(null)
 
   return (
     <div className="demo-page">
       <h1 className="demo-page__title">행 클릭으로 선택 (clickRowToSelect)</h1>
       <p className="demo-page__desc">
-        <code>rowSelection.clickRowToSelect: true</code>를 설정하면 체크박스·라디오 셀이 아닌
-        행 어디를 클릭해도 선택 상태가 토글됩니다.
+        <code>rowSelection.clickRowToSelect: true</code>를 설정하면 체크박스·라디오 셀이 아닌 행 어디를 클릭해도 선택
+        상태가 토글됩니다.
         <code>onRow.onClick</code>과 함께 사용해 상세 패널 열기 등 추가 동작을 병행할 수 있습니다.
       </p>
 
@@ -102,8 +102,14 @@ export function ClickRowSelectDemo() {
           {checkKeys.length > 0 && (
             <button
               onClick={() => setCheckKeys([])}
-              style={{ marginLeft: 8, fontSize: 12, padding: '1px 8px', cursor: 'pointer',
-                       border: '1px solid #d9d9d9', borderRadius: 4 }}
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                padding: '1px 8px',
+                cursor: 'pointer',
+                border: '1px solid #d9d9d9',
+                borderRadius: 4,
+              }}
             >
               선택 해제
             </button>
@@ -136,8 +142,14 @@ export function ClickRowSelectDemo() {
           {radioKey != null && (
             <button
               onClick={() => setRadioKey(null)}
-              style={{ marginLeft: 8, fontSize: 12, padding: '1px 8px', cursor: 'pointer',
-                       border: '1px solid #d9d9d9', borderRadius: 4 }}
+              style={{
+                marginLeft: 8,
+                fontSize: 12,
+                padding: '1px 8px',
+                cursor: 'pointer',
+                border: '1px solid #d9d9d9',
+                borderRadius: 4,
+              }}
             >
               선택 해제
             </button>
@@ -193,25 +205,41 @@ export function ClickRowSelectDemo() {
               </div>
               {detailRow ? (
                 <div style={{ padding: '10px 12px', fontSize: 13 }}>
-                  {([
-                    ['이름',  detailRow.name],
-                    ['부서',  detailRow.dept],
-                    ['팀',    detailRow.team],
-                    ['직급',  detailRow.position],
-                    ['레벨',  detailRow.level],
-                    ['연봉',  `${Number(detailRow.salary).toLocaleString()}만`],
-                  ] as [string, string][]).map(([k, v]) => (
-                    <div key={k} style={{ display: 'flex', justifyContent: 'space-between',
-                                         padding: '4px 0', borderBottom: '1px solid #f0f0f0' }}>
+                  {(
+                    [
+                      ['이름', detailRow.name],
+                      ['부서', detailRow.dept],
+                      ['팀', detailRow.team],
+                      ['직급', detailRow.position],
+                      ['레벨', detailRow.level],
+                      ['연봉', `${Number(detailRow.salary).toLocaleString()}만`],
+                    ] as [string, string][]
+                  ).map(([k, v]) => (
+                    <div
+                      key={k}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        padding: '4px 0',
+                        borderBottom: '1px solid #f0f0f0',
+                      }}
+                    >
                       <span style={{ color: 'rgba(0,0,0,.45)' }}>{k}</span>
                       <strong>{v}</strong>
                     </div>
                   ))}
-                  <div style={{ marginTop: 10, padding: '6px 8px', borderRadius: 6,
-                                background: comboKeys.includes(detailRow.id) ? '#f0f7ff' : '#fafafa',
-                                border: `1px solid ${comboKeys.includes(detailRow.id) ? '#1677ff' : '#e4e6ef'}`,
-                                fontSize: 12, textAlign: 'center',
-                                color: comboKeys.includes(detailRow.id) ? '#1677ff' : 'rgba(0,0,0,.45)' }}>
+                  <div
+                    style={{
+                      marginTop: 10,
+                      padding: '6px 8px',
+                      borderRadius: 6,
+                      background: comboKeys.includes(detailRow.id) ? '#f0f7ff' : '#fafafa',
+                      border: `1px solid ${comboKeys.includes(detailRow.id) ? '#1677ff' : '#e4e6ef'}`,
+                      fontSize: 12,
+                      textAlign: 'center',
+                      color: comboKeys.includes(detailRow.id) ? '#1677ff' : 'rgba(0,0,0,.45)',
+                    }}
+                  >
                     {comboKeys.includes(detailRow.id) ? '✓ 선택됨' : '선택 안됨'}
                   </div>
                 </div>

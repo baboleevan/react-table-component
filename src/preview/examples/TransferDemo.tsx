@@ -8,22 +8,28 @@ import { DemoBlock } from '../components/DemoBlock'
 // 공통 컬럼
 // ──────────────────────────────────────────────
 const BASE_COLUMNS: ColumnType<Employee>[] = [
-  { key: 'id',       title: 'ID',       dataIndex: 'id',       width: 65,  align: 'center' },
-  { key: 'name',     title: '이름',     dataIndex: 'name',     width: 100 },
-  { key: 'dept',     title: '부서',     dataIndex: 'dept',     width: 90 },
-  { key: 'position', title: '직급',     dataIndex: 'position', width: 90 },
-  { key: 'level',    title: '레벨',     dataIndex: 'level',    width: 90 },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 65, align: 'center' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100 },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 90 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'level', title: '레벨', dataIndex: 'level', width: 90 },
 ]
 
 const WIDE_COLUMNS: ColumnType<Employee>[] = [
-  { key: 'id',       title: 'ID',       dataIndex: 'id',       width: 65,  align: 'center' },
-  { key: 'name',     title: '이름',     dataIndex: 'name',     width: 100 },
-  { key: 'dept',     title: '부서',     dataIndex: 'dept',     width: 90 },
-  { key: 'team',     title: '팀',       dataIndex: 'team',     width: 80 },
-  { key: 'position', title: '직급',     dataIndex: 'position', width: 90 },
-  { key: 'salary',   title: '연봉(만)', dataIndex: 'salary',   width: 100, align: 'right',
-    render: (v) => (v as number).toLocaleString() },
-  { key: 'status',   title: '상태',     dataIndex: 'status',   width: 70  },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 65, align: 'center' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100 },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 90 },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 80 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  {
+    key: 'salary',
+    title: '연봉(만)',
+    dataIndex: 'salary',
+    width: 100,
+    align: 'right',
+    render: (v) => (v as number).toLocaleString(),
+  },
+  { key: 'status', title: '상태', dataIndex: 'status', width: 70 },
 ]
 
 // ──────────────────────────────────────────────
@@ -81,7 +87,7 @@ export function TransferDemo() {
 
   const addLog = (direction: 'right' | 'left', keys: (string | number)[]) => {
     const arrow = direction === 'right' ? '→' : '←'
-    setLog(prev => [
+    setLog((prev) => [
       `${arrow} ${keys.length}개 이동 (keys: ${keys.slice(0, 3).join(', ')}${keys.length > 3 ? '...' : ''})`,
       ...prev.slice(0, 9),
     ])
@@ -95,8 +101,7 @@ export function TransferDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">데이터 이전 (DataTransfer)</h1>
       <p className="demo-page__desc">
-        두 패널 사이에서 행을 선택하여 이동할 수 있습니다.
-        중앙 <strong>▶ / ◀ 버튼</strong> 클릭 또는 컨테이너 포커스 후
+        두 패널 사이에서 행을 선택하여 이동할 수 있습니다. 중앙 <strong>▶ / ◀ 버튼</strong> 클릭 또는 컨테이너 포커스 후
         <strong> → / ← 방향키</strong>로 이동합니다.
       </p>
 
@@ -144,25 +149,35 @@ export function TransferDemo() {
           </div>
           {/* 이벤트 로그 */}
           <div style={{ width: 240, flexShrink: 0 }}>
-            <div style={{
-              border: '1px solid #e4e6ef', borderRadius: 8, overflow: 'hidden',
-            }}>
+            <div
+              style={{
+                border: '1px solid #e4e6ef',
+                borderRadius: 8,
+                overflow: 'hidden',
+              }}
+            >
               <div style={{ padding: '8px 12px', background: '#eef0f7', fontWeight: 600, fontSize: 13 }}>
                 onChange 이벤트 로그
               </div>
               <div style={{ padding: '6px 0', minHeight: 120, maxHeight: 300, overflowY: 'auto' }}>
                 {log.length === 0 ? (
                   <div style={{ padding: '8px 12px', fontSize: 12, color: 'rgba(0,0,0,.3)' }}>없음</div>
-                ) : log.map((entry, i) => (
-                  <div key={i} style={{
-                    padding: '4px 12px', fontSize: 12,
-                    color: i === 0 ? '#1677ff' : 'rgba(0,0,0,.6)',
-                    fontWeight: i === 0 ? 600 : 400,
-                    borderBottom: '1px solid #f5f5f5',
-                  }}>
-                    {entry}
-                  </div>
-                ))}
+                ) : (
+                  log.map((entry, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: '4px 12px',
+                        fontSize: 12,
+                        color: i === 0 ? '#1677ff' : 'rgba(0,0,0,.6)',
+                        fontWeight: i === 0 ? 600 : 400,
+                        borderBottom: '1px solid #f5f5f5',
+                      }}
+                    >
+                      {entry}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -175,14 +190,21 @@ export function TransferDemo() {
         description="DataTransfer 영역을 클릭해 포커스를 맞춘 뒤, 체크박스로 행을 선택하고 방향키(→ ←)를 눌러 이동하세요."
         code={KEYBOARD_CODE}
       >
-        <div style={{
-          padding: '8px 12px', marginBottom: 10,
-          background: '#fffbe6', border: '1px solid #ffe58f', borderRadius: 6,
-          fontSize: 12, color: '#7c5700',
-        }}>
-          💡 <strong>사용법:</strong> DataTransfer 영역을 클릭하여 포커스를 잡은 뒤,
-          체크박스로 행을 선택하고 <kbd style={{ padding: '1px 5px', border: '1px solid #d9d9d9', borderRadius: 3, background: '#fff' }}>→</kbd> /
-          <kbd style={{ padding: '1px 5px', border: '1px solid #d9d9d9', borderRadius: 3, background: '#fff' }}>←</kbd> 키를 누르세요.
+        <div
+          style={{
+            padding: '8px 12px',
+            marginBottom: 10,
+            background: '#fffbe6',
+            border: '1px solid #ffe58f',
+            borderRadius: 6,
+            fontSize: 12,
+            color: '#7c5700',
+          }}
+        >
+          💡 <strong>사용법:</strong> DataTransfer 영역을 클릭하여 포커스를 잡은 뒤, 체크박스로 행을 선택하고{' '}
+          <kbd style={{ padding: '1px 5px', border: '1px solid #d9d9d9', borderRadius: 3, background: '#fff' }}>→</kbd>{' '}
+          /<kbd style={{ padding: '1px 5px', border: '1px solid #d9d9d9', borderRadius: 3, background: '#fff' }}>←</kbd>{' '}
+          키를 누르세요.
         </div>
         <DataTransfer<Employee>
           dataSource={DEMO_DATA}
@@ -194,8 +216,8 @@ export function TransferDemo() {
           height={380}
         />
         <p style={{ margin: '8px 0 0', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          배정 완료: <strong>{targetKeys3.length}</strong>명 /
-          대기: <strong>{DEMO_DATA.length - targetKeys3.length}</strong>명
+          배정 완료: <strong>{targetKeys3.length}</strong>명 / 대기:{' '}
+          <strong>{DEMO_DATA.length - targetKeys3.length}</strong>명
         </p>
       </DemoBlock>
 
@@ -215,9 +237,8 @@ export function TransferDemo() {
 />`}
       >
         <p style={{ margin: '0 0 8px', fontSize: 12, color: 'rgba(0,0,0,.45)' }}>
-          전체: <strong>1,000</strong>명 |
-          선발: <strong>{largeTargetKeys.length}</strong>명 |
-          대기: <strong>{1000 - largeTargetKeys.length}</strong>명
+          전체: <strong>1,000</strong>명 | 선발: <strong>{largeTargetKeys.length}</strong>명 | 대기:{' '}
+          <strong>{1000 - largeTargetKeys.length}</strong>명
         </p>
         <DataTransfer<Employee>
           dataSource={largeData}

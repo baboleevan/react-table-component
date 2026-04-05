@@ -39,7 +39,10 @@ function fetchEmployees({ page, pageSize, sortKey, sortOrder }: FetchParams): Pr
 }
 
 const STATUS_COLORS: Record<string, string> = {
-  재직: '#52c41a', 휴직: '#ff4d4f', 수습: '#1677ff', 파견: '#722ed1',
+  재직: '#52c41a',
+  휴직: '#ff4d4f',
+  수습: '#1677ff',
+  파견: '#722ed1',
 }
 
 const CODE = `// 서버 페이지네이션 패턴
@@ -74,12 +77,12 @@ useEffect(() => { load(page, pageSize) }, [page, pageSize, load])
 />`
 
 export function ServerPaginationDemo() {
-  const [data, setData]         = useState<Employee[]>([])
-  const [total, setTotal]       = useState(0)
-  const [page, setPage]         = useState(1)
+  const [data, setData] = useState<Employee[]>([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(50)
-  const [loading, setLoading]   = useState(false)
-  const [sortKey, setSortKey]   = useState<string | undefined>()
+  const [loading, setLoading] = useState(false)
+  const [sortKey, setSortKey] = useState<string | undefined>()
   const [sortOrder, setSortOrder] = useState<'ascend' | 'descend' | undefined>()
 
   const load = useCallback(async (p: number, ps: number, sk?: string, so?: 'ascend' | 'descend') => {
@@ -98,9 +101,9 @@ export function ServerPaginationDemo() {
     (pag: { current?: number; pageSize?: number }, sorter: { columnKey?: string; order?: string | null }) => {
       const newPage = pag.current ?? 1
       const newSize = pag.pageSize ?? pageSize
-      const newKey  = sorter.columnKey ?? undefined
-      const rawOrd  = sorter.order
-      const newOrd  = (rawOrd === 'ascend' || rawOrd === 'descend') ? rawOrd : undefined
+      const newKey = sorter.columnKey ?? undefined
+      const rawOrd = sorter.order
+      const newOrd = rawOrd === 'ascend' || rawOrd === 'descend' ? rawOrd : undefined
 
       setPage(newPage)
       setPageSize(newSize)
@@ -110,47 +113,72 @@ export function ServerPaginationDemo() {
     [pageSize],
   )
 
-  const columns = useMemo((): ColumnType<Employee>[] => [
-    { key: 'id',    title: 'ID',    dataIndex: 'id',    width: 70,  fixed: 'left' },
-    { key: 'name',  title: '이름',  dataIndex: 'name',  width: 110, fixed: 'left', sorter: true },
-    { key: 'email', title: '이메일', dataIndex: 'email', width: 200, ellipsis: true },
-    { key: 'phone', title: '전화번호', dataIndex: 'phone', width: 150 },
-    { key: 'dept',  title: '부서',  dataIndex: 'dept',  width: 100, sorter: true },
-    { key: 'team',  title: '팀',    dataIndex: 'team',  width: 90 },
-    { key: 'position', title: '직급', dataIndex: 'position', width: 90, sorter: true },
-    { key: 'level', title: '레벨',  dataIndex: 'level', width: 100, sorter: true },
-    {
-      key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right',
-      sorter: true, render: (v) => (v as number).toLocaleString(),
-    },
-    { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center', sorter: true },
-    { key: 'gender', title: '성별', dataIndex: 'gender', width: 70, align: 'center' },
-    { key: 'city', title: '도시', dataIndex: 'city', width: 90, sorter: true },
-    { key: 'joinDate', title: '입사일', dataIndex: 'joinDate', width: 110, sorter: true },
-    { key: 'contractType', title: '고용형태', dataIndex: 'contractType', width: 100 },
-    {
-      key: 'status', title: '상태', dataIndex: 'status', width: 90, align: 'center', sorter: true,
-      render: (v) => <span style={{ color: STATUS_COLORS[v as string] ?? '#000', fontWeight: 500 }}>{v as string}</span>,
-    },
-    { key: 'score', title: '점수', dataIndex: 'score', width: 80, align: 'center', sorter: true },
-    { key: 'grade', title: '등급', dataIndex: 'grade', width: 70, align: 'center', sorter: true },
-    { key: 'project', title: '프로젝트', dataIndex: 'project', width: 110 },
-    {
-      key: 'revenue', title: '매출(만)', dataIndex: 'revenue', width: 110, align: 'right',
-      sorter: true, render: (v) => (v as number).toLocaleString(),
-    },
-    {
-      key: 'profitRate', title: '수익률(%)', dataIndex: 'profitRate', width: 110, align: 'right', sorter: true,
-    },
-    { key: 'memo', title: '메모', dataIndex: 'memo', width: 160, ellipsis: true, fixed: 'right' },
-  ], [])
+  const columns = useMemo(
+    (): ColumnType<Employee>[] => [
+      { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
+      { key: 'name', title: '이름', dataIndex: 'name', width: 110, fixed: 'left', sorter: true },
+      { key: 'email', title: '이메일', dataIndex: 'email', width: 200, ellipsis: true },
+      { key: 'phone', title: '전화번호', dataIndex: 'phone', width: 150 },
+      { key: 'dept', title: '부서', dataIndex: 'dept', width: 100, sorter: true },
+      { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
+      { key: 'position', title: '직급', dataIndex: 'position', width: 90, sorter: true },
+      { key: 'level', title: '레벨', dataIndex: 'level', width: 100, sorter: true },
+      {
+        key: 'salary',
+        title: '연봉(만)',
+        dataIndex: 'salary',
+        width: 110,
+        align: 'right',
+        sorter: true,
+        render: (v) => (v as number).toLocaleString(),
+      },
+      { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center', sorter: true },
+      { key: 'gender', title: '성별', dataIndex: 'gender', width: 70, align: 'center' },
+      { key: 'city', title: '도시', dataIndex: 'city', width: 90, sorter: true },
+      { key: 'joinDate', title: '입사일', dataIndex: 'joinDate', width: 110, sorter: true },
+      { key: 'contractType', title: '고용형태', dataIndex: 'contractType', width: 100 },
+      {
+        key: 'status',
+        title: '상태',
+        dataIndex: 'status',
+        width: 90,
+        align: 'center',
+        sorter: true,
+        render: (v) => (
+          <span style={{ color: STATUS_COLORS[v as string] ?? '#000', fontWeight: 500 }}>{v as string}</span>
+        ),
+      },
+      { key: 'score', title: '점수', dataIndex: 'score', width: 80, align: 'center', sorter: true },
+      { key: 'grade', title: '등급', dataIndex: 'grade', width: 70, align: 'center', sorter: true },
+      { key: 'project', title: '프로젝트', dataIndex: 'project', width: 110 },
+      {
+        key: 'revenue',
+        title: '매출(만)',
+        dataIndex: 'revenue',
+        width: 110,
+        align: 'right',
+        sorter: true,
+        render: (v) => (v as number).toLocaleString(),
+      },
+      {
+        key: 'profitRate',
+        title: '수익률(%)',
+        dataIndex: 'profitRate',
+        width: 110,
+        align: 'right',
+        sorter: true,
+      },
+      { key: 'memo', title: '메모', dataIndex: 'memo', width: 160, ellipsis: true, fixed: 'right' },
+    ],
+    [],
+  )
 
   return (
     <div className="demo-page">
       <h1 className="demo-page__title">서버 페이지네이션</h1>
       <p className="demo-page__desc">
-        페이지 이동 · 정렬 · 페이지 크기 변경 시 API를 호출합니다 (400 ms 지연 시뮬레이션).
-        실제 프로젝트에서는 <code>fetchEmployees</code>를 실제 API 호출로 교체하세요.
+        페이지 이동 · 정렬 · 페이지 크기 변경 시 API를 호출합니다 (400 ms 지연 시뮬레이션). 실제 프로젝트에서는{' '}
+        <code>fetchEmployees</code>를 실제 API 호출로 교체하세요.
       </p>
 
       <DemoBlock
@@ -172,7 +200,10 @@ export function ServerPaginationDemo() {
               showSizeChanger: true,
               pageSizeOptions: [25, 50, 100],
               showTotal: (t, [s, e]) => `${s}-${e} / 총 ${t}건`,
-              onChange: (p, ps) => { setPage(p); setPageSize(ps) },
+              onChange: (p, ps) => {
+                setPage(p)
+                setPageSize(ps)
+              },
             }}
             onChange={handleChange as unknown as Parameters<typeof DataGrid<Employee>>[0]['onChange']}
           />

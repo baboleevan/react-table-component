@@ -4,219 +4,229 @@
 // DataTransfer 컴포넌트 스타일
 // ──────────────────────────────────────────────
 
-$border-color : #d9d9d9;
-$header-bg    : #fafafa;
-$primary      : #1677ff;
-$text-primary : rgba(0, 0, 0, .85);
-$text-secondary: rgba(0, 0, 0, .45);
-$text-disabled : rgba(0, 0, 0, .25);
-$radius       : 8px;
+$border-color: #d9d9d9;
+$header-bg: #fafafa;
+$primary: #1677ff;
+$text-primary: rgba(0, 0, 0, 0.85);
+$text-secondary: rgba(0, 0, 0, 0.45);
+$text-disabled: rgba(0, 0, 0, 0.25);
+$radius: 8px;
 
 .datatransfer {
-  display      : flex;
-  gap          : 0;
-  align-items  : stretch;
-  outline      : none;
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+  outline: none;
 
   // ── 패널 ─────────────────────────────────────
   &__panel {
-    flex           : 1;
-    display        : flex;
-    flex-direction : column;
-    border         : 1px solid $border-color;
-    border-radius  : $radius;
-    overflow       : hidden;
-    background     : #fff;
-    min-width      : 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid $border-color;
+    border-radius: $radius;
+    overflow: hidden;
+    background: #fff;
+    min-width: 0;
   }
 
   // ── 패널 헤더 ─────────────────────────────────
   &__panel-header {
-    display         : flex;
-    align-items     : center;
-    gap             : 8px;
-    padding         : 10px 14px;
-    background      : $header-bg;
-    border-bottom   : 1px solid $border-color;
-    flex-shrink     : 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    background: $header-bg;
+    border-bottom: 1px solid $border-color;
+    flex-shrink: 0;
   }
 
   &__panel-check {
-    display : flex;
-    cursor  : pointer;
+    display: flex;
+    cursor: pointer;
 
     input[type='checkbox'] {
-      width         : 15px;
-      height        : 15px;
-      margin        : 0;
-      cursor        : pointer;
-      accent-color  : $primary;
+      width: 15px;
+      height: 15px;
+      margin: 0;
+      cursor: pointer;
+      accent-color: $primary;
     }
   }
 
   &__panel-title {
-    flex        : 1;
-    font-weight : 600;
-    font-size   : 13px;
-    color       : $text-primary;
-    white-space : nowrap;
-    overflow    : hidden;
+    flex: 1;
+    font-weight: 600;
+    font-size: 13px;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
     text-overflow: ellipsis;
   }
 
   &__panel-count {
-    font-size   : 12px;
-    color       : $text-secondary;
-    white-space : nowrap;
-    flex-shrink : 0;
+    font-size: 12px;
+    color: $text-secondary;
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   // ── 검색 ─────────────────────────────────────
   &__search {
-    padding       : 8px 10px;
-    border-bottom : 1px solid #f0f0f0;
-    flex-shrink   : 0;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f0f0f0;
+    flex-shrink: 0;
   }
 
   &__search-input {
-    width       : 100%;
-    padding     : 5px 10px;
-    border      : 1px solid $border-color;
+    width: 100%;
+    padding: 5px 10px;
+    border: 1px solid $border-color;
     border-radius: 6px;
-    font-size   : 13px;
-    outline     : none;
-    box-sizing  : border-box;
-    color       : $text-primary;
-    transition  : border-color .15s;
+    font-size: 13px;
+    outline: none;
+    box-sizing: border-box;
+    color: $text-primary;
+    transition: border-color 0.15s;
 
-    &:focus { border-color: $primary; }
-    &::placeholder { color: $text-disabled; }
+    &:focus {
+      border-color: $primary;
+    }
+    &::placeholder {
+      color: $text-disabled;
+    }
   }
 
   // ── 바디 (DataGrid 영역) ─────────────────────
   &__panel-body {
-    flex     : 1;
-    overflow : hidden;
-    position : relative;
+    flex: 1;
+    overflow: hidden;
+    position: relative;
   }
 
   &__empty {
-    display         : flex;
-    align-items     : center;
-    justify-content : center;
-    height          : 100%;
-    color           : $text-disabled;
-    font-size       : 13px;
-    user-select     : none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: $text-disabled;
+    font-size: 13px;
+    user-select: none;
   }
 
   // ── 하단 푸터 ─────────────────────────────────
   &__panel-footer {
-    padding       : 6px 14px;
-    border-top    : 1px solid #f0f0f0;
-    font-size     : 12px;
-    min-height    : 30px;
-    display       : flex;
-    align-items   : center;
-    background    : $header-bg;
-    flex-shrink   : 0;
+    padding: 6px 14px;
+    border-top: 1px solid #f0f0f0;
+    font-size: 12px;
+    min-height: 30px;
+    display: flex;
+    align-items: center;
+    background: $header-bg;
+    flex-shrink: 0;
   }
 
   &__panel-footer--selected {
-    color       : $primary;
-    font-weight : 500;
-    display     : flex;
-    align-items : center;
-    gap         : 6px;
+    color: $primary;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
   }
 
   &__panel-footer--empty {
-    color : $text-disabled;
+    color: $text-disabled;
   }
 
   &__clear-btn {
-    background    : transparent;
-    border        : none;
-    color         : $primary;
-    cursor        : pointer;
-    font-size     : 12px;
-    padding       : 0;
+    background: transparent;
+    border: none;
+    color: $primary;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 0;
     text-decoration: underline;
     text-underline-offset: 2px;
 
-    &:hover { opacity: .75; }
+    &:hover {
+      opacity: 0.75;
+    }
   }
 
   // ── 중앙 조작 버튼 영역 ───────────────────────
   &__operation {
-    display         : flex;
-    flex-direction  : column;
-    justify-content : center;
-    align-items     : center;
-    gap             : 10px;
-    flex-shrink     : 0;
-    padding         : 0 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    padding: 0 14px;
   }
 
   &__op-btn {
-    position        : relative;
-    display         : flex;
-    align-items     : center;
-    justify-content : center;
-    width           : 36px;
-    height          : 36px;
-    border          : 1.5px solid $primary;
-    border-radius   : 50%;
-    background      : #fff;
-    color           : $primary;
-    cursor          : pointer;
-    transition      : background .15s, color .15s, border-color .15s, box-shadow .15s;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border: 1.5px solid $primary;
+    border-radius: 50%;
+    background: #fff;
+    color: $primary;
+    cursor: pointer;
+    transition:
+      background 0.15s,
+      color 0.15s,
+      border-color 0.15s,
+      box-shadow 0.15s;
 
     &:hover:not(:disabled) {
-      background : $primary;
-      color      : #fff;
-      box-shadow : 0 2px 8px rgba($primary, .35);
+      background: $primary;
+      color: #fff;
+      box-shadow: 0 2px 8px rgba($primary, 0.35);
     }
 
     &:active:not(:disabled) {
-      background : color.adjust($primary, $lightness: -8%);
+      background: color.adjust($primary, $lightness: -8%);
     }
 
     &:disabled {
-      border-color : $border-color;
-      color        : $text-disabled;
-      cursor       : not-allowed;
-      box-shadow   : none;
+      border-color: $border-color;
+      color: $text-disabled;
+      cursor: not-allowed;
+      box-shadow: none;
     }
   }
 
   &__op-badge {
-    position        : absolute;
-    top             : -6px;
-    right           : -6px;
-    min-width       : 16px;
-    height          : 16px;
-    padding         : 0 3px;
-    background      : $primary;
-    color           : #fff;
-    border-radius   : 8px;
-    font-size       : 10px;
-    font-weight     : 600;
-    display         : flex;
-    align-items     : center;
-    justify-content : center;
-    line-height     : 1;
-    pointer-events  : none;
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 3px;
+    background: $primary;
+    color: #fff;
+    border-radius: 8px;
+    font-size: 10px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    pointer-events: none;
   }
 
   &__op-btn--left &__op-badge {
-    background : #ff7a00;
+    background: #ff7a00;
   }
 
   // 키보드 포커스 링
   &:focus-visible {
-    outline        : 2px solid $primary;
-    outline-offset : 2px;
-    border-radius  : $radius;
+    outline: 2px solid $primary;
+    outline-offset: 2px;
+    border-radius: $radius;
   }
 }

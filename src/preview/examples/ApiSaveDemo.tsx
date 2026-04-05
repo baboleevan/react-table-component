@@ -17,39 +17,119 @@ async function fakeApiSave(payload: { id: number; changes: Partial<Employee> }[]
 
 // ── 편집 가능한 컬럼 ─────────────────────────────
 const makeColumns = (dirty: DirtyMap): ColumnType<Employee>[] => [
-  { key: 'id',           title: 'ID',        dataIndex: 'id',           width: 70,  fixed: 'left' },
-  { key: 'name',         title: '이름',      dataIndex: 'name',         width: 100, editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.name !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'email',        title: '이메일',    dataIndex: 'email',        width: 200, editable: true, ellipsis: true,
-    onCell: (r) => ({ className: dirty[r.id]?.email !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'phone',        title: '연락처',    dataIndex: 'phone',        width: 150, editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.phone !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'dept',         title: '부서',      dataIndex: 'dept',         width: 90,  editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.dept !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'team',         title: '팀',        dataIndex: 'team',         width: 90 },
-  { key: 'position',     title: '직급',      dataIndex: 'position',     width: 90 },
-  { key: 'level',        title: '레벨',      dataIndex: 'level',        width: 100 },
-  { key: 'salary',       title: '연봉(만)',  dataIndex: 'salary',       width: 110, align: 'right', editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.salary !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'bonus',        title: '보너스',    dataIndex: 'bonus',        width: 100, align: 'right', editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.bonus !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'age',          title: '나이',      dataIndex: 'age',          width: 70,  align: 'center' },
-  { key: 'city',         title: '도시',      dataIndex: 'city',         width: 90,  editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.city !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'joinDate',     title: '입사일',    dataIndex: 'joinDate',     width: 110 },
-  { key: 'status',       title: '상태',      dataIndex: 'status',       width: 80 },
-  { key: 'score',        title: '점수',      dataIndex: 'score',        width: 80,  align: 'center', editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.score !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'grade',        title: '등급',      dataIndex: 'grade',        width: 70,  align: 'center', editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.grade !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'project',      title: '프로젝트',  dataIndex: 'project',      width: 110, editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.project !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'budget',       title: '예산(만)',  dataIndex: 'budget',       width: 110, align: 'right', editable: true,
-    onCell: (r) => ({ className: dirty[r.id]?.budget !== undefined ? 'cell--dirty' : '' }) },
-  { key: 'revenue',      title: '매출(만)',  dataIndex: 'revenue',      width: 110, align: 'right' },
-  { key: 'profitRate',   title: '수익률(%)', dataIndex: 'profitRate',   width: 110, align: 'right' },
-  { key: 'memo',         title: '메모',      dataIndex: 'memo',         width: 180, editable: true, ellipsis: true, fixed: 'right',
-    onCell: (r) => ({ className: dirty[r.id]?.memo !== undefined ? 'cell--dirty' : '' }) },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
+  {
+    key: 'name',
+    title: '이름',
+    dataIndex: 'name',
+    width: 100,
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.name !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'email',
+    title: '이메일',
+    dataIndex: 'email',
+    width: 200,
+    editable: true,
+    ellipsis: true,
+    onCell: (r) => ({ className: dirty[r.id]?.email !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'phone',
+    title: '연락처',
+    dataIndex: 'phone',
+    width: 150,
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.phone !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'dept',
+    title: '부서',
+    dataIndex: 'dept',
+    width: 90,
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.dept !== undefined ? 'cell--dirty' : '' }),
+  },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'level', title: '레벨', dataIndex: 'level', width: 100 },
+  {
+    key: 'salary',
+    title: '연봉(만)',
+    dataIndex: 'salary',
+    width: 110,
+    align: 'right',
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.salary !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'bonus',
+    title: '보너스',
+    dataIndex: 'bonus',
+    width: 100,
+    align: 'right',
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.bonus !== undefined ? 'cell--dirty' : '' }),
+  },
+  { key: 'age', title: '나이', dataIndex: 'age', width: 70, align: 'center' },
+  {
+    key: 'city',
+    title: '도시',
+    dataIndex: 'city',
+    width: 90,
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.city !== undefined ? 'cell--dirty' : '' }),
+  },
+  { key: 'joinDate', title: '입사일', dataIndex: 'joinDate', width: 110 },
+  { key: 'status', title: '상태', dataIndex: 'status', width: 80 },
+  {
+    key: 'score',
+    title: '점수',
+    dataIndex: 'score',
+    width: 80,
+    align: 'center',
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.score !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'grade',
+    title: '등급',
+    dataIndex: 'grade',
+    width: 70,
+    align: 'center',
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.grade !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'project',
+    title: '프로젝트',
+    dataIndex: 'project',
+    width: 110,
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.project !== undefined ? 'cell--dirty' : '' }),
+  },
+  {
+    key: 'budget',
+    title: '예산(만)',
+    dataIndex: 'budget',
+    width: 110,
+    align: 'right',
+    editable: true,
+    onCell: (r) => ({ className: dirty[r.id]?.budget !== undefined ? 'cell--dirty' : '' }),
+  },
+  { key: 'revenue', title: '매출(만)', dataIndex: 'revenue', width: 110, align: 'right' },
+  { key: 'profitRate', title: '수익률(%)', dataIndex: 'profitRate', width: 110, align: 'right' },
+  {
+    key: 'memo',
+    title: '메모',
+    dataIndex: 'memo',
+    width: 180,
+    editable: true,
+    ellipsis: true,
+    fixed: 'right',
+    onCell: (r) => ({ className: dirty[r.id]?.memo !== undefined ? 'cell--dirty' : '' }),
+  },
 ]
 
 // ────────────────────────────────────────────────
@@ -91,18 +171,13 @@ function SaveButtonExample() {
   const dirtyCount = Object.keys(dirty).length
   const columns = makeColumns(dirty)
 
-  const handleCellEdit = useCallback(
-    (rowKey: string | number, colKey: string, newValue: unknown) => {
-      setData((prev) =>
-        prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
-      )
-      setDirty((prev) => ({
-        ...prev,
-        [rowKey as number]: { ...prev[rowKey as number], [colKey]: newValue as never },
-      }))
-    },
-    [],
-  )
+  const handleCellEdit = useCallback((rowKey: string | number, colKey: string, newValue: unknown) => {
+    setData((prev) => prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)))
+    setDirty((prev) => ({
+      ...prev,
+      [rowKey as number]: { ...prev[rowKey as number], [colKey]: newValue as never },
+    }))
+  }, [])
 
   const handleSave = useCallback(async () => {
     if (dirtyCount === 0) return
@@ -130,7 +205,14 @@ function SaveButtonExample() {
               ? `✓ ${lastSaved} 저장됨`
               : '수정 사항 없음'}
         </span>
-        <button className="api-demo-btn api-demo-btn--ghost" onClick={() => { setData(EMPLOYEE_DATA); setDirty({}); setStatus('idle') }}>
+        <button
+          className="api-demo-btn api-demo-btn--ghost"
+          onClick={() => {
+            setData(EMPLOYEE_DATA)
+            setDirty({})
+            setStatus('idle')
+          }}
+        >
           초기화
         </button>
         <button
@@ -138,7 +220,13 @@ function SaveButtonExample() {
           onClick={handleSave}
           disabled={dirtyCount === 0 || status === 'saving'}
         >
-          {status === 'saving' ? '저장 중…' : status === 'success' ? '저장 완료 ✓' : status === 'error' ? '오류 발생 ✗' : `변경사항 저장 (${dirtyCount}행)`}
+          {status === 'saving'
+            ? '저장 중…'
+            : status === 'success'
+              ? '저장 완료 ✓'
+              : status === 'error'
+                ? '오류 발생 ✗'
+                : `변경사항 저장 (${dirtyCount}행)`}
         </button>
       </div>
       <div style={{ height: 500 }}>
@@ -201,9 +289,7 @@ function AutoSaveExample() {
 
   const handleCellEdit = useCallback(
     (rowKey: string | number, colKey: string, newValue: unknown) => {
-      setData((prev) =>
-        prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
-      )
+      setData((prev) => prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)))
       pendingRef.current[rowKey as number] = {
         ...pendingRef.current[rowKey as number],
         [colKey]: newValue as never,
@@ -231,7 +317,10 @@ function AutoSaveExample() {
   )
 
   const statusLabel: Record<SaveStatus, string> = {
-    idle: '대기 중', saving: '⏳ 전송 대기…', success: '✓ 저장됨', error: '✗ 오류',
+    idle: '대기 중',
+    saving: '⏳ 전송 대기…',
+    success: '✓ 저장됨',
+    error: '✗ 오류',
   }
 
   // 자동 저장 예제는 빈 dirty 맵 사용 (노란 강조 표시 불필요)
@@ -240,9 +329,7 @@ function AutoSaveExample() {
   return (
     <>
       <div className="api-demo-toolbar">
-        <span className={`api-demo-status api-demo-status--${status}`}>
-          {statusLabel[status]}
-        </span>
+        <span className={`api-demo-status api-demo-status--${status}`}>{statusLabel[status]}</span>
       </div>
       <div style={{ height: 440 }}>
         <DataGrid<Employee>
@@ -261,7 +348,9 @@ function AutoSaveExample() {
       </div>
       {log.length > 0 && (
         <div className="api-demo-log">
-          {log.map((line, i) => <div key={i}>{line}</div>)}
+          {log.map((line, i) => (
+            <div key={i}>{line}</div>
+          ))}
         </div>
       )}
     </>
@@ -293,18 +382,18 @@ const handleCellEdit = (rowKey, colKey, newValue) => {
 />`
 
 const INLINE_COLUMNS: ColumnType<Employee>[] = [
-  { key: 'id',       title: 'ID',        dataIndex: 'id',       width: 70,  fixed: 'left' },
-  { key: 'name',     title: '이름',      dataIndex: 'name',     width: 110, editable: true },
-  { key: 'email',    title: '이메일',    dataIndex: 'email',    width: 200, editable: true, ellipsis: true },
-  { key: 'phone',    title: '연락처',    dataIndex: 'phone',    width: 150, editable: true },
-  { key: 'dept',     title: '부서',      dataIndex: 'dept',     width: 100, editable: true },
-  { key: 'team',     title: '팀',        dataIndex: 'team',     width: 90 },
-  { key: 'position', title: '직급',      dataIndex: 'position', width: 90 },
-  { key: 'salary',   title: '연봉(만)',  dataIndex: 'salary',   width: 110, align: 'right', editable: true },
-  { key: 'bonus',    title: '보너스',    dataIndex: 'bonus',    width: 100, align: 'right', editable: true },
-  { key: 'city',     title: '도시',      dataIndex: 'city',     width: 100, editable: true },
-  { key: 'project',  title: '프로젝트',  dataIndex: 'project',  width: 120, editable: true },
-  { key: 'memo',     title: '메모',      dataIndex: 'memo',     width: 180, editable: true, ellipsis: true, fixed: 'right' },
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 110, editable: true },
+  { key: 'email', title: '이메일', dataIndex: 'email', width: 200, editable: true, ellipsis: true },
+  { key: 'phone', title: '연락처', dataIndex: 'phone', width: 150, editable: true },
+  { key: 'dept', title: '부서', dataIndex: 'dept', width: 100, editable: true },
+  { key: 'team', title: '팀', dataIndex: 'team', width: 90 },
+  { key: 'position', title: '직급', dataIndex: 'position', width: 90 },
+  { key: 'salary', title: '연봉(만)', dataIndex: 'salary', width: 110, align: 'right', editable: true },
+  { key: 'bonus', title: '보너스', dataIndex: 'bonus', width: 100, align: 'right', editable: true },
+  { key: 'city', title: '도시', dataIndex: 'city', width: 100, editable: true },
+  { key: 'project', title: '프로젝트', dataIndex: 'project', width: 120, editable: true },
+  { key: 'memo', title: '메모', dataIndex: 'memo', width: 180, editable: true, ellipsis: true, fixed: 'right' },
 ]
 
 function InlineSaveExample() {
@@ -314,18 +403,13 @@ function InlineSaveExample() {
 
   const dirtyCount = Object.keys(dirty).length
 
-  const handleCellEdit = useCallback(
-    (rowKey: string | number, colKey: string, newValue: unknown) => {
-      setData((prev) =>
-        prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
-      )
-      setDirty((prev) => ({
-        ...prev,
-        [rowKey as number]: { ...prev[rowKey as number], [colKey]: newValue as never },
-      }))
-    },
-    [],
-  )
+  const handleCellEdit = useCallback((rowKey: string | number, colKey: string, newValue: unknown) => {
+    setData((prev) => prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)))
+    setDirty((prev) => ({
+      ...prev,
+      [rowKey as number]: { ...prev[rowKey as number], [colKey]: newValue as never },
+    }))
+  }, [])
 
   const handleSave = useCallback(async () => {
     if (dirtyCount === 0) return
@@ -346,13 +430,15 @@ function InlineSaveExample() {
     <>
       <div className="api-demo-toolbar">
         <span className="api-demo-toolbar__info">
-          {dirtyCount > 0
-            ? `${dirtyCount}개 행 수정됨`
-            : '수정 사항 없음'}
+          {dirtyCount > 0 ? `${dirtyCount}개 행 수정됨` : '수정 사항 없음'}
         </span>
         <button
           className="api-demo-btn api-demo-btn--ghost"
-          onClick={() => { setData(EMPLOYEE_DATA.slice(0, 200)); setDirty({}); setStatus('idle') }}
+          onClick={() => {
+            setData(EMPLOYEE_DATA.slice(0, 200))
+            setDirty({})
+            setStatus('idle')
+          }}
         >
           초기화
         </button>
@@ -361,7 +447,13 @@ function InlineSaveExample() {
           onClick={handleSave}
           disabled={dirtyCount === 0 || status === 'saving'}
         >
-          {status === 'saving' ? '저장 중…' : status === 'success' ? '저장 완료' : status === 'error' ? '오류 발생' : `변경사항 저장 (${dirtyCount}행)`}
+          {status === 'saving'
+            ? '저장 중…'
+            : status === 'success'
+              ? '저장 완료'
+              : status === 'error'
+                ? '오류 발생'
+                : `변경사항 저장 (${dirtyCount}행)`}
         </button>
       </div>
       <div style={{ height: 500 }}>
@@ -392,8 +484,7 @@ export function ApiSaveDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">API 저장 (편집 → 전송)</h1>
       <p className="demo-page__desc">
-        셀을 편집하고 API로 전송하는 세 가지 패턴입니다.
-        API는 시뮬레이션이며 15% 확률로 오류가 발생합니다.
+        셀을 편집하고 API로 전송하는 세 가지 패턴입니다. API는 시뮬레이션이며 15% 확률로 오류가 발생합니다.
       </p>
 
       <DemoBlock
@@ -414,7 +505,7 @@ export function ApiSaveDemo() {
 
       <DemoBlock
         title="인라인 편집 + 수동 저장 (200건)"
-        description="editMode=&quot;inline&quot;으로 에디터가 처음부터 노출됩니다. 편집된 셀은 노란 배경으로 표시되고, 원래 값으로 되돌리면 배경이 해제됩니다."
+        description='editMode="inline"으로 에디터가 처음부터 노출됩니다. 편집된 셀은 노란 배경으로 표시되고, 원래 값으로 되돌리면 배경이 해제됩니다.'
         code={INLINE_CODE}
       >
         <InlineSaveExample />

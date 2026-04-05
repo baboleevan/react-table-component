@@ -233,11 +233,7 @@ export interface DataGridProps<T = Record<string, unknown>> {
   /** 행 이벤트 핸들러 */
   onRow?: (record: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
   /** 정렬/필터/페이지 변경 콜백 */
-  onChange?: (
-    pagination: PaginationConfig,
-    sorter: SorterResult<T>,
-    extra: TableCurrentDataSource<T>,
-  ) => void
+  onChange?: (pagination: PaginationConfig, sorter: SorterResult<T>, extra: TableCurrentDataSource<T>) => void
   /** 셀 편집 커밋 콜백 */
   onCellEdit?: (rowKey: string | number, columnKey: string, newValue: unknown, record: T) => void
   /**

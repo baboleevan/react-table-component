@@ -32,20 +32,40 @@ export interface Employee {
   memo: string
 }
 
-const DEPTS    = ['개발', '디자인', '기획', '마케팅', 'QA', '인프라', '데이터', '보안']
-const TEAMS    = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta']
+const DEPTS = ['개발', '디자인', '기획', '마케팅', 'QA', '인프라', '데이터', '보안']
+const TEAMS = ['Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta']
 const POSITIONS = ['사원', '주임', '대리', '과장', '차장', '부장', '이사']
-const LEVELS   = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal']
-const CITIES   = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '수원', '창원', '고양']
-const GRADES   = ['S', 'A', 'B', 'C', 'D']
+const LEVELS = ['Junior', 'Mid', 'Senior', 'Lead', 'Principal']
+const CITIES = ['서울', '부산', '대구', '인천', '광주', '대전', '울산', '수원', '창원', '고양']
+const GRADES = ['S', 'A', 'B', 'C', 'D']
 const STATUSES = ['재직', '휴직', '수습', '파견']
 const CONTRACTS = ['정규직', '계약직', '파트타임', '프리랜서']
 const PROJECTS = ['Phoenix', 'Atlas', 'Hermes', 'Poseidon', 'Apollo', 'Artemis', 'Hera', 'Ares']
 const MANAGERS = ['김민준', '이서연', '박도윤', '정시아', '최준서', '윤하은', '임지호', '한소율']
 
 const FIRST = ['김', '이', '박', '정', '최', '윤', '임', '한', '오', '서', '신', '권', '황', '안', '송']
-const LAST  = ['민준', '서연', '도윤', '시아', '준서', '하은', '지호', '소율', '수빈', '예린',
-               '태양', '지훈', '나연', '현우', '은지', '승현', '아린', '재원', '다은', '성민']
+const LAST = [
+  '민준',
+  '서연',
+  '도윤',
+  '시아',
+  '준서',
+  '하은',
+  '지호',
+  '소율',
+  '수빈',
+  '예린',
+  '태양',
+  '지훈',
+  '나연',
+  '현우',
+  '은지',
+  '승현',
+  '아린',
+  '재원',
+  '다은',
+  '성민',
+]
 
 function pick<T>(arr: T[], seed: number): T {
   return arr[seed % arr.length]
