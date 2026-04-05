@@ -64,14 +64,14 @@ export function BasicDemo() {
         description="가상화 자동 활성화 — DOM에는 보이는 행만 렌더링됩니다"
         code={CODE}
       >
-        <div style={{ height: 520 }}>
+        <div style={{ height: 900 }}>
           <DataGrid<Employee>
             dataSource={EMPLOYEE_DATA}
             columns={columns}
             rowKey="id"
             scroll={{ x: 2600 }}
             pagination={{
-              pageSize: 50,
+              pageSize: 20,
               showSizeChanger: true,
               pageSizeOptions: [50, 100, 200],
               showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건`,

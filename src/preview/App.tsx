@@ -17,6 +17,7 @@ import { ServerPaginationDemo } from './examples/ServerPaginationDemo'
 import { InfiniteScrollDemo } from './examples/InfiniteScrollDemo'
 import { InlineEditDemo } from './examples/InlineEditDemo'
 import { ValidationDemo } from './examples/ValidationDemo'
+import { FocusedRowDemo } from './examples/FocusedRowDemo'
 import './preview.scss'
 
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
             <Route path="/components/infinite-scroll" element={<InfiniteScrollDemo />} />
             <Route path="/components/inline-edit" element={<InlineEditDemo />} />
             <Route path="/components/validation" element={<ValidationDemo />} />
+            <Route path="/components/focused-row" element={<FocusedRowDemo />} />
           </Routes>
         </main>
       </div>

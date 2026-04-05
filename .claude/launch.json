@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "dev",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["/Users/leevan/github/react-table-component/.claude/start-dev.sh"],
+      "port": 5173
+    }
+  ]
+}

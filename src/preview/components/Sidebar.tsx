@@ -20,6 +20,7 @@ const MENU = [
       { path: '/components/server-pagination', label: '서버 페이지네이션' },
       { path: '/components/infinite-scroll', label: '무한 스크롤' },
       { path: '/components/validation', label: '셀 검증 (Validation)' },
+      { path: '/components/focused-row', label: '포커스된 행 추적 (onFocusedRowChange)' },
     ],
   },
 ]

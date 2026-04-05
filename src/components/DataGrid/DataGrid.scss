@@ -11,7 +11,7 @@
 // ============================================================
 
 .datagrid {
-  // 런타임 오버라이드를 위해 변수를 CSS 커스텀 프로퍼티로 노출
+  // 런타임 오버라이드를 위해 변수를 CSS 커스텀 프로퍼티로 노출135
   --grid-bg: #{$grid-bg};
   --grid-border-color: #{$grid-border-color};
   --grid-header-bg: #{$grid-header-bg};
@@ -70,9 +70,13 @@
   }
 
   // ── 테이블 요소 ──────────────────────────
+  // border-collapse: separate + border-spacing: 0 사용.
+  // border-collapse: collapse 는 position:sticky 와 조합 시 Chrome/Safari 에서
+  // body 셀이 sticky header 위에 paint 되는 브라우저 버그가 있어 separate로 전환.
   &__table {
     width: 100%;
-    border-collapse: collapse;
+    border-collapse: separate;
+    border-spacing: 0;
     table-layout: fixed;
   }
 
@@ -81,9 +85,19 @@
     position: sticky;
     top: 0;
     z-index: 2;
+    background: var(--grid-header-bg);
+  }
+
+  // thead 내부 tr background 보장 (그룹헤더 여러 행 포함)
+  &__thead tr {
+    background: var(--grid-header-bg);
   }
 
   &__th {
+    // 각 th 셀도 sticky — thead 와 이중 적용으로 모든 브라우저에서 안정적으로 body 위에 렌더
+    position: sticky;
+    top: var(--th-sticky-top, 0px);
+    z-index: 2;
     padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
     background: var(--grid-header-bg);
     color: var(--grid-header-color);
@@ -123,21 +137,14 @@
       background: var(--grid-header-bg);
       border-bottom: 1px solid var(--grid-border-color);
       // 그룹 간 구분선 — 형제 그룹 헤더 사이 세로선
-      border-right: 2px solid #d0d4e8;
+      border-right: 1px solid #d0d4e8;
 
       &:last-child { border-right: none; }
     }
 
     // 리사이즈 핸들 부모
-    &.resizable {
-      position: relative;
-    }
-
-    // 고정 컬럼에 resizable이 적용돼도 sticky가 유지되도록 명시적으로 오버라이드
-    &.fixed-left.resizable,
-    &.fixed-right.resizable {
-      position: sticky;
-    }
+    // position: sticky 자체가 포지셔닝 컨텍스트이므로 별도 position: relative 불필요
+    &.resizable { /* resize handle은 position:sticky 컨텍스트 내 absolute로 동작 */ }
   }
 
   // ── 리사이즈 핸들 ──────────────────────────
@@ -397,6 +404,7 @@
     width: 40px;
     text-align: center;
 
+    // 공통 기반 스타일
     input[type='checkbox'],
     input[type='radio'] {
       appearance: none;
@@ -404,7 +412,6 @@
       width: 16px;
       height: 16px;
       border: 2px solid #c8cdd8;
-      border-radius: 50%;
       background: #fff;
       cursor: pointer;
       position: relative;
@@ -412,7 +419,16 @@
       flex-shrink: 0;
       transition: background 0.15s, border-color 0.15s;
 
-      // 체크된 상태: 파란 원 + 흰 체크마크
+      &:hover:not(:checked):not(:indeterminate) {
+        border-color: #1677ff;
+      }
+    }
+
+    // ── checkbox: 네모 (rounded square) ──────────
+    input[type='checkbox'] {
+      border-radius: 4px;
+
+      // 체크된 상태: 파란 배경 + 흰 체크마크
       &:checked {
         background: #1677ff;
         border-color: #1677ff;
@@ -431,7 +447,7 @@
         }
       }
 
-      // 부분 선택 (indeterminate) 상태
+      // 부분 선택 (indeterminate)
       &:indeterminate {
         background: #1677ff;
         border-color: #1677ff;
@@ -448,9 +464,28 @@
           border-radius: 1px;
         }
       }
+    }
 
-      &:hover:not(:checked):not(:indeterminate) {
+    // ── radio: 원형 ───────────────────────────────
+    input[type='radio'] {
+      border-radius: 50%;
+
+      // 선택된 상태: 파란 테두리 + 내부 채움 원
+      &:checked {
         border-color: #1677ff;
+        background: #fff;
+
+        &::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          background: #1677ff;
+        }
       }
     }
   }

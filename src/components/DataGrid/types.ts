@@ -15,15 +15,17 @@ export interface ValidateResult {
 
 /**
  * 검증 함수 타입 — 동기/비동기 모두 지원
- * @param value   현재 셀 값
- * @param record  전체 행 레코드
- * @param rowKey  행 고유 키
+ * @param value      현재 셀 값
+ * @param record     전체 행 레코드
+ * @param rowKey     행 고유 키
+ * @param dataSource 전체 데이터 배열 (교차 컬럼/행 비교 시 활용)
  * @returns ValidateResult 또는 null(success)
  */
 export type ValidatorFn<T = Record<string, unknown>> = (
   value: unknown,
   record: T,
   rowKey: string | number,
+  dataSource: T[],
 ) => ValidateResult | null | undefined | Promise<ValidateResult | null | undefined>
 
 /** 오류 항목 — getErrors()가 반환하는 구조 */
@@ -35,20 +37,34 @@ export interface ValidateError {
 }
 
 /**
- * DataGrid 명령형 핸들 — gridRef prop으로 전달하여 외부에서 검증을 제어합니다
+ * DataGrid 명령형 핸들 — gridRef prop으로 전달하여 외부에서 검증 및 데이터 조회를 제어합니다
  *
  * @example
- * const gridRef = useRef<DataGridHandle>(null)
- * <DataGrid gridRef={gridRef} ... />
+ * const gridRef = useRef<DataGridHandle<MyRow>>(null)
+ * <DataGrid<MyRow> gridRef={gridRef} ... />
  * await gridRef.current?.validate()
+ * const row = gridRef.current?.getRow('row-1')
  */
-export interface DataGridHandle {
+export interface DataGridHandle<T = Record<string, unknown>> {
   /** dataSource 전체에 대해 validator 실행. 에러가 없으면 true 반환 */
   validate: () => Promise<boolean>
   /** 현재 오류 목록 반환 */
   getErrors: () => ValidateError[]
   /** 모든 오류 초기화 */
   clearErrors: () => void
+  /**
+   * 특정 행 레코드 반환.
+   * @param rowKey rowKey prop으로 지정한 키 값
+   */
+  getRow: (rowKey: string | number) => T | undefined
+  /**
+   * 특정 셀 값 반환.
+   * @param rowKey    행 고유 키
+   * @param columnKey 컬럼 key 문자열
+   */
+  getCell: (rowKey: string | number, columnKey: string) => unknown
+  /** dataSource 전체 배열 반환 */
+  getData: () => T[]
 }
 
 // ──────────────────────────────────────────────
@@ -219,6 +235,15 @@ export interface DataGridProps<T = Record<string, unknown>> {
   /** 셀 편집 커밋 콜백 */
   onCellEdit?: (rowKey: string | number, columnKey: string, newValue: unknown, record: T) => void
   /**
+   * 포커스된 행이 변경될 때 호출됩니다.
+   * 클릭과 키보드(↑↓) 이동 모두에서 발생합니다.
+   *
+   * @example
+   * const [focusedRow, setFocusedRow] = useState<MyRow | null>(null)
+   * <DataGrid onFocusedRowChange={(record) => setFocusedRow(record)} />
+   */
+  onFocusedRowChange?: (record: T, index: number) => void
+  /**
    * 편집 가능한 컬럼의 편집 활성화 모드.
    * - 'dblclick' (기본값): 더블클릭으로 편집 진입
    * - 'click': 단일 클릭으로 즉시 편집 진입
@@ -238,7 +263,7 @@ export interface DataGridProps<T = Record<string, unknown>> {
    * <DataGrid gridRef={gridRef} />
    * await gridRef.current?.validate()
    */
-  gridRef?: RefObject<DataGridHandle>
+  gridRef?: RefObject<DataGridHandle<T>>
   /** 검증 상태가 변경될 때 호출 (오류 목록 전달) */
   onValidateChange?: (errors: ValidateError[]) => void
 }

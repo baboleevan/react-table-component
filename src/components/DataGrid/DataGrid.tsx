@@ -3,6 +3,7 @@ import {
   useCallback,
   useMemo,
   useEffect,
+  useLayoutEffect,
   memo,
   useRef,
   forwardRef,
@@ -318,6 +319,7 @@ export function DataGrid<T = Record<string, unknown>>({
   onScroll: onScrollProp,
   gridRef,
   onValidateChange,
+  onFocusedRowChange,
 }: DataGridProps<T>) {
   // ── 정렬 ─────────────────────────────────────
   const [sortKey, setSortKey] = useState<string | null>(null)
@@ -344,6 +346,12 @@ export function DataGrid<T = Record<string, unknown>>({
   const resolvedColumns = useMemo(() => resolveFixedOffsets(leafColumns), [leafColumns])
   // resolvedColumnsRef는 검증 핸들에서 사용 (아래 선언 후 동기화)
 
+
+  // ── 그룹헤더 th sticky-top 오프셋 ───────────────
+  // <th> 셀 자체에 position:sticky 적용 시, 2번째 헤더 행은 첫 행 높이만큼 top을 내려야 함
+  // useLayoutEffect는 headerRows 선언 이후에 배치 (아래 헤더 행 계산 블록 근처)
+  const theadRef = useRef<HTMLTableSectionElement>(null)
+  const [thTopOffsets, setThTopOffsets] = useState<number[]>([])
 
   // ── 리사이즈 상태 ─────────────────────────────
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
@@ -507,7 +515,7 @@ export function DataGrid<T = Record<string, unknown>>({
     })
 
     try {
-      const result = await col.validator(value, record, rk)
+      const result = await col.validator(value, record, rk, dataSourceRef.current)
       setValidateErrorsSync(prev => {
         const next = prev.filter(e => !(String(e.rowKey) === String(rk) && e.columnKey === colKey))
         if (!result || result.status === 'success') return next
@@ -532,7 +540,8 @@ export function DataGrid<T = Record<string, unknown>>({
     setFocusedKey(getRowKey(record, rowKey, newRow))
     scrollToRow(newRow)
     scrollToCol(newCol)
-  }, [pagedData, resolvedColumns.length, rowKey, scrollToRow, scrollToCol])
+    onFocusedRowChange?.(record, newRow)
+  }, [pagedData, resolvedColumns.length, rowKey, scrollToRow, scrollToCol, onFocusedRowChange])
 
   // ── commitAndMove — 현재 편집기를 커밋하고 다음 셀로 이동 ──
   const commitAndMove = useCallback((direction: 'left' | 'right' | 'up' | 'down') => {
@@ -765,7 +774,8 @@ export function DataGrid<T = Record<string, unknown>>({
       newKeys = checked
         ? [...(rowSelection.selectedRowKeys ?? []), key]
         : (rowSelection.selectedRowKeys ?? []).filter((k) => k !== key)
-      newRows = pagedData.filter((r, i) => newKeys.includes(getRowKey(r, rowKey, i)))
+      const newKeysSet = new Set(newKeys)
+      newRows = pagedData.filter((r, i) => newKeysSet.has(getRowKey(r, rowKey, i)))
     }
     rowSelection.onChange?.(newKeys, newRows)
     rowSelection.onSelect?.(record, checked, newRows)
@@ -838,7 +848,7 @@ export function DataGrid<T = Record<string, unknown>>({
             return validatorCols.map(async (col): Promise<Entry> => {
               const val = getValue(record, col.dataIndex, col.key)
               try {
-                const result = await col.validator!(val, record, recordKey)
+                const result = await col.validator!(val, record, recordKey, allData)
                 return { rowKey: recordKey, columnKey: col.key, result }
               } catch (err) {
                 return { rowKey: recordKey, columnKey: col.key,
@@ -875,6 +885,26 @@ export function DataGrid<T = Record<string, unknown>>({
         setValidateErrors([])
         onValidateChangeRef.current?.([])
       },
+
+      /** 특정 rowKey에 해당하는 레코드 반환 */
+      getRow: (rk: string | number): T | undefined => {
+        const data = dataSourceRef.current
+        const prop = rowKeyPropRef.current
+        return data.find((record, idx) => String(getRowKey(record, prop, idx)) === String(rk))
+      },
+
+      /** 특정 rowKey·columnKey에 해당하는 셀 값 반환 */
+      getCell: (rk: string | number, columnKey: string): unknown => {
+        const data = dataSourceRef.current
+        const prop = rowKeyPropRef.current
+        const record = data.find((r, idx) => String(getRowKey(r, prop, idx)) === String(rk))
+        if (record === undefined) return undefined
+        const col = resolvedColumnsRef.current.find(c => c.key === columnKey)
+        return getValue(record, col?.dataIndex, columnKey)
+      },
+
+      /** dataSource 전체 배열 반환 */
+      getData: (): T[] => dataSourceRef.current,
     }
     // RefObject.current는 읽기 전용이지만 실제로는 mutable (React 내부 구현)
     ;(gridRef as React.MutableRefObject<typeof handle>).current = handle
@@ -883,6 +913,25 @@ export function DataGrid<T = Record<string, unknown>>({
   // ── 헤더 행 계산 ─────────────────────────────
   const maxDepth = useMemo(() => getMaxDepth(columns), [columns])
   const headerRows = useMemo(() => buildHeaderRows(columns, maxDepth), [columns, maxDepth])
+
+  // ── 그룹헤더 th sticky-top 오프셋 측정 ───────────────
+  // headerRows 선언 이후에 배치해야 deps 참조 가능
+  useLayoutEffect(() => {
+    if (!theadRef.current) return
+    const rows = Array.from(theadRef.current.querySelectorAll('tr'))
+    let cumulative = 0
+    const newOffsets: number[] = []
+    for (const row of rows) {
+      newOffsets.push(cumulative)
+      cumulative += row.getBoundingClientRect().height
+    }
+    // 값이 동일하면 불필요한 재렌더 방지
+    setThTopOffsets(prev =>
+      prev.length === newOffsets.length && prev.every((v, i) => v === newOffsets[i])
+        ? prev
+        : newOffsets
+    )
+  }, [headerRows])
 
   // ── 루트 클래스 ────────────────────────────────
   const rootClass = [
@@ -927,13 +976,14 @@ export function DataGrid<T = Record<string, unknown>>({
           </colgroup>
 
           {/* 헤더 — 다중 행(그룹 헤더) 지원 */}
-          <thead className="datagrid__thead">
+          <thead className="datagrid__thead" ref={theadRef}>
             {headerRows.map((row, rowIdx) => (
               <tr key={rowIdx}>
                 {rowIdx === 0 && rowSelection && (
                   <th
                     className="datagrid__th datagrid__selection-col"
                     rowSpan={maxDepth > 1 ? maxDepth : undefined}
+                    style={{ '--th-sticky-top': `${thTopOffsets[0] ?? 0}px` } as React.CSSProperties}
                   >
                     {(rowSelection.type ?? 'checkbox') === 'checkbox' && (
                       <input
@@ -959,7 +1009,9 @@ export function DataGrid<T = Record<string, unknown>>({
                     isLeaf && col.resizable !== false ? 'resizable' : '',
                   ].filter(Boolean).join(' ')
 
-                  const stickyStyle: React.CSSProperties = {}
+                  const stickyStyle: React.CSSProperties = {
+                    '--th-sticky-top': `${thTopOffsets[rowIdx] ?? 0}px`,
+                  } as React.CSSProperties
                   if (isLeaf && col.fixed === 'left') {
                     (stickyStyle as Record<string, unknown>)['--sticky-left'] = `${leafInternal?._left ?? 0}px`
                   }
@@ -1032,6 +1084,7 @@ export function DataGrid<T = Record<string, unknown>>({
                   className={trClass}
                   onClick={(e) => {
                     setFocusedKey(rk)
+                    onFocusedRowChange?.(record, absIdx)
                     rowExtraProps.onClick?.(e)
                   }}
                   {...rowExtraProps}
