@@ -186,6 +186,11 @@
   &__tbody {}
 
   &__tr {
+    // clickRowToSelect 활성화 시 행 전체에 pointer 커서
+    &.clickable {
+      cursor: pointer;
+    }
+
     &:hover .datagrid__td {
       background: var(--grid-row-hover-bg);
     }

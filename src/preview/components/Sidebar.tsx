@@ -22,6 +22,7 @@ const MENU = [
       { path: '/components/validation', label: '셀 검증 (Validation)' },
       { path: '/components/focused-row', label: '포커스된 행 추적 (onFocusedRowChange)' },
       { path: '/components/transfer', label: '데이터 이전 (DataTransfer)' },
+      { path: '/components/click-row-select', label: '행 클릭 선택 (clickRowToSelect)' },
     ],
   },
 ]

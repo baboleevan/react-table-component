@@ -148,6 +148,12 @@ export interface RowSelectionConfig<T = Record<string, unknown>> {
   getCheckboxProps?: (record: T) => { disabled?: boolean }
   onSelect?: (record: T, selected: boolean, selectedRows: T[]) => void
   onSelectAll?: (selected: boolean, selectedRows: T[], changeRows: T[]) => void
+  /**
+   * 행 전체를 클릭했을 때 체크박스/라디오 선택을 토글합니다.
+   * true로 설정하면 체크박스/라디오 셀 뿐 아니라 행 어디를 클릭해도 선택이 바뀝니다.
+   * @default false
+   */
+  clickRowToSelect?: boolean
 }
 
 // ──────────────────────────────────────────────

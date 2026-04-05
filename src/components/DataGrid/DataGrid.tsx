@@ -1075,19 +1075,25 @@ export function DataGrid<T = Record<string, unknown>>({
                 isFocused ? 'focused' : '',
                 isSelected ? 'selected' : '',
                 isStripe ? 'stripe' : '',
+                rowSelection?.clickRowToSelect ? 'clickable' : '',
                 customRowClass,
               ].filter(Boolean).join(' ')
 
               return (
                 <tr
                   key={rk}
+                  {...rowExtraProps}
                   className={trClass}
                   onClick={(e) => {
                     setFocusedKey(rk)
                     onFocusedRowChange?.(record, absIdx)
+                    // clickRowToSelect: 행 클릭으로 체크박스/라디오 토글
+                    if (rowSelection?.clickRowToSelect) {
+                      const disabled = rowSelection.getCheckboxProps?.(record)?.disabled
+                      if (!disabled) handleSelectRow(record, absIdx, !isSelected)
+                    }
                     rowExtraProps.onClick?.(e)
                   }}
-                  {...rowExtraProps}
                 >
                   {rowSelection && (
                     <td className="datagrid__td datagrid__selection-col">
