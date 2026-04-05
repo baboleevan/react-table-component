@@ -269,6 +269,122 @@ function AutoSaveExample() {
 }
 
 // ────────────────────────────────────────────────
+// 예제 3: 인라인 모드 + 수동 저장
+// ────────────────────────────────────────────────
+const INLINE_CODE = `const [data, setData] = useState(EMPLOYEE_DATA.slice(0, 200))
+const [dirty, setDirty] = useState<Record<number, Partial<Employee>>>({})
+
+const handleCellEdit = (rowKey, colKey, newValue) => {
+  setData(prev =>
+    prev.map(r => r.id === rowKey ? { ...r, [colKey]: newValue } : r)
+  )
+  setDirty(prev => ({
+    ...prev,
+    [rowKey]: { ...prev[rowKey], [colKey]: newValue },
+  }))
+}
+
+<DataGrid
+  dataSource={data}
+  columns={columns}
+  rowKey="id"
+  editMode="inline"   // ← 처음부터 에디터 노출
+  onCellEdit={handleCellEdit}
+/>`
+
+const INLINE_COLUMNS: ColumnType<Employee>[] = [
+  { key: 'id',       title: 'ID',        dataIndex: 'id',       width: 70,  fixed: 'left' },
+  { key: 'name',     title: '이름',      dataIndex: 'name',     width: 110, editable: true },
+  { key: 'email',    title: '이메일',    dataIndex: 'email',    width: 200, editable: true, ellipsis: true },
+  { key: 'phone',    title: '연락처',    dataIndex: 'phone',    width: 150, editable: true },
+  { key: 'dept',     title: '부서',      dataIndex: 'dept',     width: 100, editable: true },
+  { key: 'team',     title: '팀',        dataIndex: 'team',     width: 90 },
+  { key: 'position', title: '직급',      dataIndex: 'position', width: 90 },
+  { key: 'salary',   title: '연봉(만)',  dataIndex: 'salary',   width: 110, align: 'right', editable: true },
+  { key: 'bonus',    title: '보너스',    dataIndex: 'bonus',    width: 100, align: 'right', editable: true },
+  { key: 'city',     title: '도시',      dataIndex: 'city',     width: 100, editable: true },
+  { key: 'project',  title: '프로젝트',  dataIndex: 'project',  width: 120, editable: true },
+  { key: 'memo',     title: '메모',      dataIndex: 'memo',     width: 180, editable: true, ellipsis: true, fixed: 'right' },
+]
+
+function InlineSaveExample() {
+  const [data, setData] = useState<Employee[]>(EMPLOYEE_DATA.slice(0, 200))
+  const [dirty, setDirty] = useState<DirtyMap>({})
+  const [status, setStatus] = useState<SaveStatus>('idle')
+
+  const dirtyCount = Object.keys(dirty).length
+
+  const handleCellEdit = useCallback(
+    (rowKey: string | number, colKey: string, newValue: unknown) => {
+      setData((prev) =>
+        prev.map((r) => (r.id === rowKey ? { ...r, [colKey]: newValue } : r)),
+      )
+      setDirty((prev) => ({
+        ...prev,
+        [rowKey as number]: { ...prev[rowKey as number], [colKey]: newValue as never },
+      }))
+    },
+    [],
+  )
+
+  const handleSave = useCallback(async () => {
+    if (dirtyCount === 0) return
+    setStatus('saving')
+    const payload = Object.entries(dirty).map(([id, changes]) => ({ id: Number(id), changes }))
+    try {
+      await fakeApiSave(payload)
+      setDirty({})
+      setStatus('success')
+      setTimeout(() => setStatus('idle'), 2000)
+    } catch {
+      setStatus('error')
+      setTimeout(() => setStatus('idle'), 3000)
+    }
+  }, [dirty, dirtyCount])
+
+  return (
+    <>
+      <div className="api-demo-toolbar">
+        <span className="api-demo-toolbar__info">
+          {dirtyCount > 0
+            ? `${dirtyCount}개 행 수정됨`
+            : '수정 사항 없음'}
+        </span>
+        <button
+          className="api-demo-btn api-demo-btn--ghost"
+          onClick={() => { setData(EMPLOYEE_DATA.slice(0, 200)); setDirty({}); setStatus('idle') }}
+        >
+          초기화
+        </button>
+        <button
+          className={`api-demo-btn api-demo-btn--primary${status === 'saving' ? ' loading' : ''}`}
+          onClick={handleSave}
+          disabled={dirtyCount === 0 || status === 'saving'}
+        >
+          {status === 'saving' ? '저장 중…' : status === 'success' ? '저장 완료' : status === 'error' ? '오류 발생' : `변경사항 저장 (${dirtyCount}행)`}
+        </button>
+      </div>
+      <div style={{ height: 500 }}>
+        <DataGrid<Employee>
+          dataSource={data}
+          columns={INLINE_COLUMNS}
+          rowKey="id"
+          editMode="inline"
+          onCellEdit={handleCellEdit}
+          scroll={{ x: 1600 }}
+          pagination={{
+            pageSize: 20,
+            showSizeChanger: true,
+            pageSizeOptions: [20, 50, 100],
+            showTotal: (total: number, [s, e]: [number, number]) => `${s}-${e} / 총 ${total}건`,
+          }}
+        />
+      </div>
+    </>
+  )
+}
+
+// ────────────────────────────────────────────────
 // 페이지
 // ────────────────────────────────────────────────
 export function ApiSaveDemo() {
@@ -276,7 +392,7 @@ export function ApiSaveDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">API 저장 (편집 → 전송)</h1>
       <p className="demo-page__desc">
-        10,000건 × 21컬럼에서 셀을 편집하고 API로 전송하는 두 가지 패턴입니다.
+        셀을 편집하고 API로 전송하는 세 가지 패턴입니다.
         API는 시뮬레이션이며 15% 확률로 오류가 발생합니다.
       </p>
 
@@ -294,6 +410,14 @@ export function ApiSaveDemo() {
         code={AUTO_CODE}
       >
         <AutoSaveExample />
+      </DemoBlock>
+
+      <DemoBlock
+        title="인라인 편집 + 수동 저장 (200건)"
+        description="editMode=&quot;inline&quot;으로 에디터가 처음부터 노출됩니다. 편집된 셀은 노란 배경으로 표시되고, 원래 값으로 되돌리면 배경이 해제됩니다."
+        code={INLINE_CODE}
+      >
+        <InlineSaveExample />
       </DemoBlock>
     </div>
   )
