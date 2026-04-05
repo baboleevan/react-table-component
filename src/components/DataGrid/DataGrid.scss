@@ -433,6 +433,7 @@
   &__selection-col {
     width: 40px;
     text-align: center;
+    text-overflow: clip;
 
     // 공통 기반 스타일
     input[type='checkbox'],
