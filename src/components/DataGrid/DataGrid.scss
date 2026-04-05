@@ -1,0 +1,557 @@
+// ============================================================
+// DataGrid 컴포넌트 스타일
+//
+// src/styles/_variables.scss의 SCSS 변수로 커스터마이징하거나
+// .datagrid 래퍼에 CSS 커스텀 프로퍼티를 오버라이드하세요:
+//
+//   .datagrid {
+//     --grid-row-focus-bg: #fff7e6;
+//     --grid-header-bg: #e6fffb;
+//   }
+// ============================================================
+
+.datagrid {
+  // 런타임 오버라이드를 위해 변수를 CSS 커스텀 프로퍼티로 노출
+  --grid-bg: #{$grid-bg};
+  --grid-border-color: #{$grid-border-color};
+  --grid-header-bg: #{$grid-header-bg};
+  --grid-header-color: #{$grid-header-color};
+  --grid-cell-color: #{$grid-cell-color};
+  --grid-cell-bg: #{$grid-cell-bg};
+  --grid-row-hover-bg: #{$grid-row-hover-bg};
+  --grid-row-focus-bg: #{$grid-row-focus-bg};
+  --grid-row-selected-bg: #{$grid-row-selected-bg};
+  --grid-row-stripe-bg: #{$grid-row-stripe-bg};
+  --grid-edit-border-color: #{$grid-edit-border-color};
+  --grid-font-size: #{$grid-font-size};
+  --grid-cell-padding-v: #{$grid-cell-padding-v};
+  --grid-cell-padding-h: #{$grid-cell-padding-h};
+
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  font-size: var(--grid-font-size);
+  background: var(--grid-bg);
+  overflow: hidden;
+
+  // ── 크기 변형 ──────────────────────────
+  &.datagrid--small {
+    --grid-cell-padding-v: 6px;
+    --grid-cell-padding-h: 8px;
+    --grid-font-size: 12px;
+  }
+
+  &.datagrid--large {
+    --grid-cell-padding-v: 14px;
+    --grid-cell-padding-h: 16px;
+  }
+
+  // ── 스크롤 컨테이너 ───────────────────────
+  &__scroll {
+    flex: 1;
+    overflow: auto;
+    min-height: 0;
+
+    &::-webkit-scrollbar {
+      width: #{$grid-scrollbar-width};
+      height: #{$grid-scrollbar-width};
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #{$grid-scrollbar-color};
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  // ── 테이블 요소 ──────────────────────────
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  // ── 헤더 ────────────────────────────────
+  &__thead {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  &__th {
+    padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
+    background: var(--grid-header-bg);
+    color: var(--grid-header-color);
+    font-weight: #{$grid-header-font-weight};
+    text-align: left;
+    white-space: nowrap;
+    border-bottom: 1px solid var(--grid-border-color);
+    user-select: none;
+
+    &.align-center { text-align: center; }
+    &.align-right  { text-align: right; }
+
+    &.sortable {
+      cursor: pointer;
+
+      &:hover { background: #e4e7f2; }
+    }
+
+    &.sorted {
+      color: #1677ff;
+    }
+
+    // 고정 컬럼
+    &.fixed-left,
+    &.fixed-right {
+      position: sticky;
+      z-index: 3;
+      background: var(--grid-header-bg);
+    }
+
+    &.fixed-left  { left: var(--sticky-left, 0); }
+    &.fixed-right { right: var(--sticky-right, 0); }
+
+    // 그룹 헤더
+    &.group-header {
+      text-align: center;
+      background: var(--grid-header-bg);
+      border-bottom: 1px solid var(--grid-border-color);
+      // 그룹 간 구분선 — 형제 그룹 헤더 사이 세로선
+      border-right: 2px solid #d0d4e8;
+
+      &:last-child { border-right: none; }
+    }
+
+    // 리사이즈 핸들 부모
+    &.resizable {
+      position: relative;
+    }
+
+    // 고정 컬럼에 resizable이 적용돼도 sticky가 유지되도록 명시적으로 오버라이드
+    &.fixed-left.resizable,
+    &.fixed-right.resizable {
+      position: sticky;
+    }
+  }
+
+  // ── 리사이즈 핸들 ──────────────────────────
+  &__resize-handle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 1;
+
+    &:hover,
+    &:active {
+      background: #1677ff;
+      opacity: 0.5;
+    }
+  }
+
+  &__sort-icon {
+    display: inline-flex;
+    flex-direction: column;
+    margin-left: 6px;
+    vertical-align: middle;
+    gap: 1px;
+
+    span {
+      font-size: 10px;
+      line-height: 1;
+      opacity: 0.3;
+      transition: opacity 0.2s;
+
+      &.active { opacity: 1; }
+    }
+  }
+
+  // ── 바디 ──────────────────────────────────
+  &__tbody {}
+
+  &__tr {
+    &:hover .datagrid__td {
+      background: var(--grid-row-hover-bg);
+    }
+
+    &.focused .datagrid__td {
+      background: var(--grid-row-focus-bg);
+    }
+
+    &.selected .datagrid__td {
+      background: var(--grid-row-selected-bg);
+    }
+
+    &.stripe .datagrid__td {
+      background: var(--grid-row-stripe-bg);
+    }
+
+    // 고정 컬럼은 각 행 상태별로 명시적으로 오버라이드해야 합니다.
+    // 그렇지 않으면 고정 컬럼 자체의 background 선언이
+    // 위의 부모-자손 셀렉터보다 우선합니다 (동일 명시도, 나중 선언이 이김).
+    &:hover .datagrid__td.fixed-left,
+    &:hover .datagrid__td.fixed-right       { background: var(--grid-row-hover-bg); }
+
+    &.focused .datagrid__td.fixed-left,
+    &.focused .datagrid__td.fixed-right     { background: var(--grid-row-focus-bg); }
+
+    &.selected .datagrid__td.fixed-left,
+    &.selected .datagrid__td.fixed-right    { background: var(--grid-row-selected-bg); }
+
+    &.stripe .datagrid__td.fixed-left,
+    &.stripe .datagrid__td.fixed-right      { background: var(--grid-row-stripe-bg); }
+  }
+
+  &__td {
+    padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
+    color: var(--grid-cell-color);
+    background: var(--grid-cell-bg);
+    border-bottom: 1px solid var(--grid-border-color);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    &.align-center { text-align: center; }
+    &.align-right  { text-align: right; }
+
+    &.ellipsis {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    // 고정 컬럼 — 뒤에서 스크롤되는 셀을 덮기 위해 불투명 배경이 필요합니다
+    &.fixed-left,
+    &.fixed-right {
+      position: sticky;
+      z-index: 1;
+      background: var(--grid-bg);
+    }
+
+    &.fixed-left  { left: var(--sticky-left, 0); }
+    &.fixed-right { right: var(--sticky-right, 0); }
+
+    // 편집 가능한 셀 (현재 편집 중이 아닌 상태)
+    // 여기 또는 CSS 커스텀 프로퍼티로 배경색, 테두리 등을 커스터마이징하세요
+    &.editable {}
+
+    // 편집 중인 셀 (dblclick/click 모드)
+    &.editing {
+      padding: 0;
+      overflow: visible;
+    }
+
+    // inline 모드 — 에디터가 항상 노출된 셀
+    &.inline-editing {
+      padding: 0;
+      overflow: visible;
+    }
+
+    // 키보드 포커스된 활성 셀 (편집 중 아님)
+    &.active-cell {
+      outline: 2px solid #1677ff;
+      outline-offset: -2px;
+    }
+
+    // ── 검증 상태 ────────────────────────────────
+    &.validate-error {
+      box-shadow: inset 0 0 0 2px #ff4d4f;
+      background-color: rgba(255, 77, 79, 0.03);
+    }
+
+    &.validate-warning {
+      box-shadow: inset 0 0 0 2px #faad14;
+      background-color: rgba(250, 173, 20, 0.03);
+    }
+
+    &.validate-validating {
+      box-shadow: inset 0 0 0 2px #1677ff;
+      opacity: 0.75;
+    }
+
+    // inline 에디터 오류 상태 — 셀 안의 input 테두리를 빨간색으로
+    &.validate-error .datagrid__editor--inline   { border-color: #ff4d4f; }
+    &.validate-warning .datagrid__editor--inline { border-color: #faad14; }
+
+    // 클릭 모드 편집 가능 셀 힌트
+    &.editable-click {
+      cursor: text;
+
+      &:hover {
+        outline: 1px dashed var(--grid-edit-border-color);
+        outline-offset: -1px;
+      }
+    }
+  }
+
+  // ── 보더 변형 ───────────────────────
+  &.bordered {
+    border: 1px solid var(--grid-border-color);
+
+    .datagrid__th,
+    .datagrid__td {
+      border-right: 1px solid var(--grid-border-color);
+
+      &:last-child { border-right: none; }
+    }
+  }
+
+  // ── 로딩 오버레이 ────────────────────────
+  &__loading {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #{$grid-loading-overlay-bg};
+    z-index: 10;
+  }
+
+  &__spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--grid-border-color);
+    border-top-color: #1677ff;
+    border-radius: 50%;
+    animation: datagrid-spin 0.7s linear infinite;
+  }
+
+  // ── 빈 상태 ────────────────────────────
+  &__empty {
+    padding: 48px 16px;
+    text-align: center;
+    color: rgba(0, 0, 0, 0.35);
+  }
+
+  // ── 인라인 에디터 (dblclick/click 모드) ──────────────────────────
+  &__editor {
+    width: 100%;
+    height: 100%;
+    padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
+    border: 2px solid var(--grid-edit-border-color);
+    background: #{$grid-edit-bg};
+    font-size: var(--grid-font-size);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+
+    // inline 모드: 항상 보이는 입력 필드 — 테두리를 최소화하여 폼처럼 보이게
+    &--inline {
+      border: 1px solid var(--grid-border-color);
+      box-shadow: none;
+      border-radius: 4px;
+      background: #fff;
+      padding: 4px 8px;
+      height: calc(100% - 4px);
+      margin: 2px;
+      width: calc(100% - 4px);
+
+      &:focus {
+        border-color: var(--grid-edit-border-color);
+        box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+        outline: none;
+      }
+    }
+  }
+
+  // ── 검증 메시지 툴팁 ──────────────────────────────
+  // td 안에 absolute로 배치되어 hover 시 표시
+  &__validate-msg {
+    display: none;
+    position: absolute;
+    left: 0;
+    top: 100%;
+    z-index: 200;
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 4px 8px;
+    border-radius: 0 0 4px 4px;
+    white-space: nowrap;
+    pointer-events: none;
+
+    &--error      { background: #ff4d4f; color: #fff; }
+    &--warning    { background: #faad14; color: #fff; }
+    &--validating { background: #1677ff; color: #fff; }
+  }
+
+  // td에 overflow:visible을 주어 툴팁이 밖으로 나오게
+  &__td.validate-error,
+  &__td.validate-warning,
+  &__td.validate-validating {
+    position: relative;
+    overflow: visible;
+
+    &:hover .datagrid__validate-msg { display: block; }
+  }
+
+  // 체크박스 / 라디오 컬럼 ────────────────────────
+  &__selection-col {
+    width: 40px;
+    text-align: center;
+
+    input[type='checkbox'],
+    input[type='radio'] {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #c8cdd8;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      position: relative;
+      vertical-align: middle;
+      flex-shrink: 0;
+      transition: background 0.15s, border-color 0.15s;
+
+      // 체크된 상태: 파란 원 + 흰 체크마크
+      &:checked {
+        background: #1677ff;
+        border-color: #1677ff;
+
+        &::after {
+          content: '';
+          position: absolute;
+          top: 1px;
+          left: 4px;
+          width: 5px;
+          height: 8px;
+          border: 2px solid #fff;
+          border-top: none;
+          border-left: none;
+          transform: rotate(45deg);
+        }
+      }
+
+      // 부분 선택 (indeterminate) 상태
+      &:indeterminate {
+        background: #1677ff;
+        border-color: #1677ff;
+
+        &::after {
+          content: '';
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          width: 8px;
+          height: 2px;
+          background: #fff;
+          border-radius: 1px;
+        }
+      }
+
+      &:hover:not(:checked):not(:indeterminate) {
+        border-color: #1677ff;
+      }
+    }
+  }
+
+  // ── 페이지네이션 ─────────────────────────────
+  &__pagination {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px;
+    border-top: 1px solid var(--grid-border-color);
+    background: var(--grid-bg);
+    flex-shrink: 0;
+
+    // 좌측 컬럼: 총 개수 텍스트
+    &-left {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+
+    // 우측 컬럼: 크기 변경기
+    &-right {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    &-total {
+      color: rgba(0, 0, 0, 0.4);
+      font-size: 12px;
+    }
+
+    // 중앙: 페이지 네비게이션 버튼
+    &-nav {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    &-btn {
+      min-width: 32px;
+      height: 32px;
+      padding: 0 8px;
+      border: 1px solid var(--grid-border-color);
+      background: var(--grid-bg);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      color: rgba(0, 0, 0, 0.65);
+      white-space: nowrap;
+
+      &:hover:not(:disabled) {
+        border-color: #1677ff;
+        color: #1677ff;
+      }
+
+      &:disabled {
+        color: rgba(0, 0, 0, 0.25);
+        border-color: var(--grid-border-color);
+        cursor: not-allowed;
+      }
+
+      &.active {
+        background: #1677ff;
+        border-color: #1677ff;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      // 처음/이전/다음/마지막 텍스트 버튼
+      &--word {
+        padding: 0 10px;
+      }
+    }
+
+    &-ellipsis {
+      display: none;
+      padding: 0 4px;
+      color: rgba(0, 0, 0, 0.45);
+      font-size: 13px;
+      line-height: 32px;
+      user-select: none;
+    }
+
+    &-size-select {
+      height: 32px;
+      padding: 0 24px 0 10px;
+      border: 1px solid var(--grid-border-color);
+      border-radius: 4px;
+      background: var(--grid-bg);
+      font-size: 13px;
+      cursor: pointer;
+      color: rgba(0, 0, 0, 0.65);
+      appearance: auto;
+
+      &:hover { border-color: #1677ff; }
+    }
+  }
+}
+
+@keyframes datagrid-spin {
+  to { transform: rotate(360deg); }
+}

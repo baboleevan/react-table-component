@@ -1,0 +1,254 @@
+import type { CSSProperties, ReactNode, RefObject } from 'react'
+
+// ──────────────────────────────────────────────
+// 검증(Validation) 타입
+// ──────────────────────────────────────────────
+
+/** 셀 검증 상태 */
+export type ValidateStatus = 'success' | 'error' | 'warning' | 'validating'
+
+/** 검증 결과 — null/undefined 반환 시 success로 처리 */
+export interface ValidateResult {
+  status: ValidateStatus
+  message?: string
+}
+
+/**
+ * 검증 함수 타입 — 동기/비동기 모두 지원
+ * @param value   현재 셀 값
+ * @param record  전체 행 레코드
+ * @param rowKey  행 고유 키
+ * @returns ValidateResult 또는 null(success)
+ */
+export type ValidatorFn<T = Record<string, unknown>> = (
+  value: unknown,
+  record: T,
+  rowKey: string | number,
+) => ValidateResult | null | undefined | Promise<ValidateResult | null | undefined>
+
+/** 오류 항목 — getErrors()가 반환하는 구조 */
+export interface ValidateError {
+  rowKey: string | number
+  columnKey: string
+  status: ValidateStatus
+  message?: string
+}
+
+/**
+ * DataGrid 명령형 핸들 — gridRef prop으로 전달하여 외부에서 검증을 제어합니다
+ *
+ * @example
+ * const gridRef = useRef<DataGridHandle>(null)
+ * <DataGrid gridRef={gridRef} ... />
+ * await gridRef.current?.validate()
+ */
+export interface DataGridHandle {
+  /** dataSource 전체에 대해 validator 실행. 에러가 없으면 true 반환 */
+  validate: () => Promise<boolean>
+  /** 현재 오류 목록 반환 */
+  getErrors: () => ValidateError[]
+  /** 모든 오류 초기화 */
+  clearErrors: () => void
+}
+
+// ──────────────────────────────────────────────
+// 컬럼 정의 (Ant Design Table과 유사한 인터페이스)
+// ──────────────────────────────────────────────
+export type SortOrder = 'ascend' | 'descend' | null
+
+export interface ColumnType<T = Record<string, unknown>> {
+  /** 고유 키; React key 및 데이터 매핑에 사용 */
+  key: string
+  /** 헤더에 표시할 타이틀 */
+  title?: ReactNode
+  /** 데이터 레코드의 필드명 (기본값: key) */
+  dataIndex?: string
+  /** 컬럼 픽셀 너비 */
+  width?: number | string
+  /** 최소 픽셀 너비 */
+  minWidth?: number
+  /** 컬럼 정렬 */
+  align?: 'left' | 'center' | 'right'
+  /** 고정 컬럼 위치 */
+  fixed?: 'left' | 'right'
+  /** 커스텀 셀 렌더러 — (value, record, rowIndex)를 받습니다 */
+  render?: (value: unknown, record: T, index: number) => ReactNode
+  /** 헤더 셀 인라인 스타일 */
+  onHeaderCell?: (column: ColumnType<T>) => { style?: CSSProperties; className?: string }
+  /** 바디 셀 인라인 스타일 */
+  onCell?: (record: T, index: number) => { style?: CSSProperties; className?: string }
+  /** 정렬 가능한 컬럼 */
+  sorter?: boolean | ((a: T, b: T) => number)
+  /** 제어 정렬 순서 */
+  sortOrder?: SortOrder
+  /** 그룹 헤더 자식 컬럼 */
+  children?: ColumnType<T>[]
+  /** 최대 픽셀 너비 (리사이즈 상한) */
+  maxWidth?: number
+  /** 컬럼 리사이즈 가능 여부 */
+  resizable?: boolean
+  /** 말줄임표 오버플로우 */
+  ellipsis?: boolean
+  /** 편집 가능한 컬럼 */
+  editable?: boolean
+  /**
+   * 커스텀 에디터 렌더러.
+   * 기본 텍스트 입력 대신 임의의 입력 컴포넌트
+   * (Select, Checkbox, Radio, DatePicker 등)를 렌더링할 때 사용합니다.
+   *
+   * @param value     현재 셀 값
+   * @param record    전체 행 레코드
+   * @param rowIndex  절대 행 인덱스
+   * @param onCommit  새 값을 전달하여 커밋하고 에디터를 닫습니다
+   * @param onCancel  편집을 취소하고 에디터를 닫습니다
+   */
+  renderEditor?: (
+    value: unknown,
+    record: T,
+    rowIndex: number,
+    onCommit: (newValue: unknown) => void,
+    onCancel: () => void,
+  ) => ReactNode
+  /**
+   * 셀 값 검증 함수. 동기·비동기 모두 지원합니다.
+   * null/undefined를 반환하면 success로 처리됩니다.
+   */
+  validator?: ValidatorFn<T>
+  /**
+   * 검증 실행 시점.
+   * - 'onBlur' (기본값): 편집 완료(blur/commit) 시 자동 실행
+   * - 'manual': gridRef.current.validate() 호출 시에만 실행
+   */
+  validateTrigger?: 'onBlur' | 'manual'
+}
+
+// ──────────────────────────────────────────────
+// 행 선택
+// ──────────────────────────────────────────────
+export interface RowSelectionConfig<T = Record<string, unknown>> {
+  type?: 'checkbox' | 'radio'
+  selectedRowKeys?: (string | number)[]
+  onChange?: (selectedRowKeys: (string | number)[], selectedRows: T[]) => void
+  getCheckboxProps?: (record: T) => { disabled?: boolean }
+  onSelect?: (record: T, selected: boolean, selectedRows: T[]) => void
+  onSelectAll?: (selected: boolean, selectedRows: T[], changeRows: T[]) => void
+}
+
+// ──────────────────────────────────────────────
+// 페이지네이션
+// ──────────────────────────────────────────────
+export interface PaginationConfig {
+  current?: number
+  pageSize?: number
+  total?: number
+  showSizeChanger?: boolean
+  showQuickJumper?: boolean
+  pageSizeOptions?: number[]
+  /** 페이지 버튼 최대 표시 개수 (기본값: 5) */
+  pageButtonCount?: number
+  onChange?: (page: number, pageSize: number) => void
+  showTotal?: (total: number, range: [number, number]) => ReactNode
+}
+
+// ──────────────────────────────────────────────
+// 스크롤
+// ──────────────────────────────────────────────
+export interface ScrollConfig {
+  x?: number | string | true
+  y?: number | string
+}
+
+// ──────────────────────────────────────────────
+// 정렬 상태
+// ──────────────────────────────────────────────
+export interface SorterResult<T> {
+  column?: ColumnType<T>
+  columnKey?: string
+  order?: SortOrder
+  field?: string
+}
+
+// ──────────────────────────────────────────────
+// 변경 정보 (AntD onChange 콜백과 유사한 구조)
+// ──────────────────────────────────────────────
+export interface TableCurrentDataSource<T> {
+  currentDataSource: T[]
+  action: 'paginate' | 'sort' | 'filter'
+}
+
+// ──────────────────────────────────────────────
+// DataGrid 메인 props
+// ──────────────────────────────────────────────
+export interface DataGridProps<T = Record<string, unknown>> {
+  /** 데이터 레코드 배열 */
+  dataSource?: T[]
+  /** 컬럼 정의 배열 */
+  columns?: ColumnType<T>[]
+  /** 행 키 필드명 또는 getter 함수 */
+  rowKey?: string | ((record: T) => string | number)
+  /** 로딩 상태 */
+  loading?: boolean
+  /** 페이지네이션 설정; false로 비활성화 */
+  pagination?: PaginationConfig | false
+  /** 행 선택 설정 */
+  rowSelection?: RowSelectionConfig<T>
+  /** 스크롤 설정 */
+  scroll?: ScrollConfig
+  /** 셀 테두리 표시 */
+  bordered?: boolean
+  /** 줄무늬 행 */
+  striped?: boolean
+  /** 테이블 크기 */
+  size?: 'small' | 'middle' | 'large'
+  /** 추가 className */
+  className?: string
+  /** 루트 요소 인라인 스타일 */
+  style?: CSSProperties
+  /** 로케일 오버라이드 */
+  locale?: { emptyText?: ReactNode }
+  /** 행 클래스명 */
+  rowClassName?: string | ((record: T, index: number) => string)
+  /** 행 이벤트 핸들러 */
+  onRow?: (record: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
+  /** 정렬/필터/페이지 변경 콜백 */
+  onChange?: (
+    pagination: PaginationConfig,
+    sorter: SorterResult<T>,
+    extra: TableCurrentDataSource<T>,
+  ) => void
+  /** 셀 편집 커밋 콜백 */
+  onCellEdit?: (rowKey: string | number, columnKey: string, newValue: unknown, record: T) => void
+  /**
+   * 편집 가능한 컬럼의 편집 활성화 모드.
+   * - 'dblclick' (기본값): 더블클릭으로 편집 진입
+   * - 'click': 단일 클릭으로 즉시 편집 진입
+   * - 'inline': 에디터(input/select/radio 등)가 항상 노출된 폼 형태
+   */
+  editMode?: 'dblclick' | 'click' | 'inline'
+  /** 대용량 데이터셋용 가상화 행 높이 (px) */
+  rowHeight?: number
+  /** 행 가상화 활성화 (dataSource.length > 100 시 자동 활성화) */
+  virtual?: boolean
+  /** 내부 스크롤 컨테이너의 스크롤 이벤트 (무한 스크롤에 유용) */
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void
+  /**
+   * DataGrid 명령형 핸들 — validate / getErrors / clearErrors 메서드에 접근합니다.
+   * @example
+   * const gridRef = useRef<DataGridHandle>(null)
+   * <DataGrid gridRef={gridRef} />
+   * await gridRef.current?.validate()
+   */
+  gridRef?: RefObject<DataGridHandle>
+  /** 검증 상태가 변경될 때 호출 (오류 목록 전달) */
+  onValidateChange?: (errors: ValidateError[]) => void
+}
+
+// ──────────────────────────────────────────────
+// 내부 타입
+// ──────────────────────────────────────────────
+export interface InternalColumnType<T> extends ColumnType<T> {
+  _left?: number
+  _right?: number
+  _colSpan?: number
+  _rowSpan?: number
+}

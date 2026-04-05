@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(node -e \"const v=require\\(''''fs''''\\).readFileSync\\(''''/dev/stdin'''',''''utf8''''\\); const arr=JSON.parse\\(v\\); console.log\\(arr.filter\\(x=>x.startsWith\\(''''18.''''\\)\\).slice\\(-5\\).join\\(''''\\\\n''''\\)\\)\")",
+      "Bash(source ~/.zshrc)",
+      "Bash(~/.nvm/nvm-exec npm:*)",
+      "Bash(source ~/.nvm/nvm.sh)",
+      "Bash(nvm use:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

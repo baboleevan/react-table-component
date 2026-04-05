@@ -1,0 +1,30 @@
+// InlineEditDemo 전용 에디터 스타일
+// DataGrid의 datagrid__editor--inline과 유사하게 맞춤
+
+.inline-demo-select,
+.inline-demo-number,
+.inline-demo-date {
+  width: 100%;
+  height: 100%;
+  padding: 4px 8px;
+  border: 1px solid #e4e6ef;
+  border-radius: 4px;
+  background: #fff;
+  font-size: 13px;
+  box-sizing: border-box;
+  outline: none;
+  appearance: auto;
+
+  &:focus {
+    border-color: #1677ff;
+    box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
+  }
+}
+
+.inline-demo-select {
+  cursor: pointer;
+}
+
+.inline-demo-number {
+  text-align: right;
+}

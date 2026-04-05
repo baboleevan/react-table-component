@@ -1,0 +1,232 @@
+// Preview app layout
+.preview-app {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+// ── Sidebar ────────────────────────────────────
+.preview-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid #e8e8e8;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+
+  &__logo {
+    padding: 20px 16px 12px;
+    font-size: 16px;
+    font-weight: 700;
+    color: #1677ff;
+    border-bottom: 1px solid #f0f0f0;
+    letter-spacing: -0.3px;
+  }
+
+  &__section-title {
+    padding: 16px 16px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: rgba(0, 0, 0, 0.45);
+  }
+
+  &__link {
+    display: block;
+    padding: 8px 16px 8px 24px;
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.65);
+    text-decoration: none;
+    border-radius: 4px;
+    margin: 1px 8px;
+    transition: all 0.15s;
+
+    &:hover {
+      background: #f5f5f5;
+      color: rgba(0, 0, 0, 0.88);
+    }
+
+    &.active {
+      background: #e6f4ff;
+      color: #1677ff;
+      font-weight: 500;
+    }
+  }
+}
+
+// ── Main content ────────────────────────────────
+.preview-main {
+  flex: 1;
+  overflow-y: auto;
+  background: #f5f5f5;
+}
+
+// ── Overview page ──────────────────────────────
+.preview-overview {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 32px;
+
+  &__hero {
+    margin-bottom: 48px;
+
+    h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: rgba(0, 0, 0, 0.88);
+    }
+
+    p {
+      font-size: 16px;
+      color: rgba(0, 0, 0, 0.45);
+      margin: 0;
+    }
+  }
+
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+
+  &__card {
+    background: #fff;
+    border: 1px solid #e8e8e8;
+    border-radius: 8px;
+    padding: 20px 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.2s;
+
+    &:hover {
+      border-color: #1677ff;
+      box-shadow: 0 4px 16px rgba(22, 119, 255, 0.1);
+      transform: translateY(-2px);
+    }
+
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 6px;
+      color: rgba(0, 0, 0, 0.88);
+    }
+
+    p {
+      font-size: 13px;
+      color: rgba(0, 0, 0, 0.45);
+      margin: 0;
+    }
+
+    &__tag {
+      display: inline-block;
+      margin-top: 10px;
+      padding: 2px 8px;
+      background: #f0f5ff;
+      color: #1677ff;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+  }
+}
+
+// ── Demo page ──────────────────────────────────
+.demo-page {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 40px 32px;
+
+  &__title {
+    font-size: 24px;
+    font-weight: 700;
+    margin: 0 0 8px;
+    color: rgba(0, 0, 0, 0.88);
+  }
+
+  &__desc {
+    font-size: 15px;
+    color: rgba(0, 0, 0, 0.45);
+    margin: 0 0 32px;
+  }
+}
+
+// ── Demo block ─────────────────────────────────
+.demo-block {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  margin-bottom: 24px;
+  overflow: hidden;
+
+  &__header {
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid #f0f0f0;
+
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 4px;
+      color: rgba(0, 0, 0, 0.88);
+    }
+
+    p {
+      font-size: 13px;
+      color: rgba(0, 0, 0, 0.45);
+      margin: 0;
+    }
+  }
+
+  &__preview {
+    padding: 20px;
+    min-height: 120px;
+  }
+
+  &__code-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    border-top: 1px solid #f0f0f0;
+    background: #fafafa;
+    cursor: pointer;
+    font-size: 12px;
+    color: rgba(0, 0, 0, 0.45);
+    user-select: none;
+
+    &:hover { color: #1677ff; }
+  }
+
+  &__code {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 20px;
+    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    border-top: 1px solid #333;
+  }
+}
+
+// ── Height demo ────────────────────────────────
+.height-demo {
+  height: 300px;
+  border: 2px dashed #e8e8e8;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+// ── Color theme demo ───────────────────────────
+.theme-demo {
+  .datagrid {
+    --grid-header-bg: #001529;
+    --grid-header-color: rgba(255, 255, 255, 0.85);
+    --grid-row-hover-bg: #e6f4ff;
+    --grid-row-focus-bg: #bae0ff;
+    --grid-border-color: #1677ff;
+  }
+}

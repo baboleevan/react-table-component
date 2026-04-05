@@ -1,0 +1,127 @@
+// ──────────────────────────────────────────────
+// Custom editor cell styles
+// ──────────────────────────────────────────────
+
+.custom-editor {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  font-size: var(--grid-font-size, 14px);
+  background: #fff;
+  border: 2px solid #1677ff;
+  box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.2);
+  outline: none;
+
+  // Select
+  &--select {
+    padding: 0 6px;
+    cursor: pointer;
+    appearance: auto;
+
+    option { font-size: 13px; }
+  }
+
+  // Radio group
+  &--radio {
+    gap: 8px;
+    padding: 4px 8px;
+    flex-wrap: wrap;
+    border-radius: 4px;
+    background: #fff;
+    z-index: 10;
+    min-width: max-content;
+  }
+
+  &__radio-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    white-space: nowrap;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background 0.15s;
+
+    &:hover { background: #e6f4ff; }
+
+    input[type='radio'] {
+      accent-color: #1677ff;
+      cursor: pointer;
+      margin: 0;
+    }
+  }
+
+  // Checkbox
+  &--checkbox {
+    gap: 6px;
+    padding: 0 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+
+    input[type='checkbox'] {
+      accent-color: #1677ff;
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+      margin: 0;
+    }
+  }
+
+  // Number — 숫자 전용 입력
+  &--number {
+    padding: 0 6px;
+    font-size: var(--grid-font-size, 14px);
+    text-align: right;
+    border-radius: 2px;
+  }
+
+  // Date — 날짜 선택
+  &--date {
+    padding: 0 6px;
+    font-size: var(--grid-font-size, 14px);
+    border-radius: 2px;
+    cursor: pointer;
+  }
+
+  // Textarea — 여러 줄 텍스트
+  &--textarea {
+    align-items: flex-start;
+    padding: 4px 6px;
+    font-size: var(--grid-font-size, 14px);
+    resize: none;
+    min-height: 60px;
+    border-radius: 2px;
+    font-family: inherit;
+    line-height: 1.4;
+  }
+
+  // Rating — 별점 선택
+  &--rating {
+    gap: 2px;
+    padding: 0 6px;
+    background: #fff;
+    border-radius: 4px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  &__star {
+    font-size: 22px;
+    color: #d9d9d9;
+    cursor: pointer;
+    transition: color 0.15s, transform 0.1s;
+    line-height: 1;
+
+    &:hover {
+      transform: scale(1.15);
+    }
+
+    &.active {
+      color: #faad14;
+    }
+  }
+}
