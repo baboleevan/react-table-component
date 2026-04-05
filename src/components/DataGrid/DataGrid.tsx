@@ -1070,7 +1070,8 @@ export function DataGrid<T = Record<string, unknown>>({
                       isActiveCell && !isEditing ? 'active-cell' : '',
                       col.editable && !isEditing && editMode === 'click' ? 'editable-click' : '',
                       editMode === 'inline' && isEditing ? 'inline-editing' : '',
-                      validateErr ? `validate-${validateErr.status}` : '',
+                      // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
+                      validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
                     ].filter(Boolean).join(' ')
 
                     return (
