@@ -289,10 +289,6 @@
       background-color: var(--grid-cell-dirty-bg);
     }
 
-    &.dirty .datagrid__editor--inline {
-      background-color: var(--grid-cell-dirty-bg);
-    }
-
     // 키보드 포커스된 활성 셀 (편집 중 아님)
     &.active-cell {
       outline: 2px solid #1677ff;
@@ -396,6 +392,10 @@
         box-shadow: 0 0 0 2px rgba(22, 119, 255, 0.15);
         outline: none;
       }
+    }
+
+    .dirty &--inline {
+      background: var(--grid-cell-dirty-bg);
     }
   }
 

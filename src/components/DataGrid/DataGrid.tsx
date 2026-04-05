@@ -164,25 +164,22 @@ const EditCell = memo(forwardRef<EditCellHandle, EditCellProps>(function EditCel
 // ──────────────────────────────────────────────
 const InlineEditInput = memo(function InlineEditInput({
   initialValue,
+  originalValue,
   onCommit,
-  onDirty,
 }: {
   initialValue: unknown
+  originalValue: string
   onCommit: (value: unknown) => void
-  onDirty?: () => void
 }) {
   const cancelledRef = useRef(false)
-  const dirtyFiredRef = useRef(false)
   const initStr = String(initialValue ?? '')
   return (
     <input
       className="datagrid__editor datagrid__editor--inline"
       defaultValue={initStr}
       onChange={(e) => {
-        if (!dirtyFiredRef.current && e.target.value !== initStr) {
-          dirtyFiredRef.current = true
-          onDirty?.()
-        }
+        const td = e.target.closest<HTMLElement>('.datagrid__td')
+        if (td) td.classList.toggle('dirty', e.target.value !== originalValue)
       }}
       onBlur={(e) => {
         if (!cancelledRef.current) onCommit(e.target.value)
@@ -191,8 +188,9 @@ const InlineEditInput = memo(function InlineEditInput({
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
           cancelledRef.current = true
-          dirtyFiredRef.current = false
           ;(e.target as HTMLInputElement).value = initStr
+          const td = (e.target as HTMLElement).closest<HTMLElement>('.datagrid__td')
+          if (td) td.classList.toggle('dirty', initStr !== originalValue)
           ;(e.target as HTMLInputElement).blur()
         }
       }}
@@ -372,8 +370,8 @@ export function DataGrid<T = Record<string, unknown>>({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null)
 
-  // ── 편집된 셀 추적 (dirty) ─────────────────────
-  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set())
+  // ── 편집된 셀 추적 (dirty): 원본 값을 저장하여 현재 값과 비교 ──
+  const originalValuesRef = useRef<Map<string, unknown>>(new Map())
 
   // ── 검증 상태 ─────────────────────────────────
   const [validateErrors, setValidateErrors] = useState<ValidateError[]>([])
@@ -547,12 +545,6 @@ export function DataGrid<T = Record<string, unknown>>({
     }
   }, [resolvedColumns, setValidateErrorsSync])
 
-  // ── dirty 마킹 헬퍼 ─────────────────────────
-  const markDirty = useCallback((rowK: string | number, colKey: string) => {
-    const key = `${String(rowK)}::${colKey}`
-    setDirtyKeys(prev => prev.has(key) ? prev : new Set(prev).add(key))
-  }, [])
-
   // ── 활성 셀 이동 ────────────────────────────
   const moveActiveCell = useCallback((rowAbsIdx: number, colIdx: number) => {
     const newRow = Math.max(0, Math.min(pagedData.length - 1, rowAbsIdx))
@@ -580,7 +572,8 @@ export function DataGrid<T = Record<string, unknown>>({
     if (record && value !== undefined) {
       const col = resolvedColumns.find(c => c.key === editCell.colKey)
       const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
-      if (String(value) !== String(oldValue ?? '')) markDirty(editCell.rowKey, editCell.colKey)
+      const ck = `${String(editCell.rowKey)}::${editCell.colKey}`
+      if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
       onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
       if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
         const field = col.dataIndex ?? col.key
@@ -630,7 +623,7 @@ export function DataGrid<T = Record<string, unknown>>({
       setEditCell(null)
     }
   }, [activeCellPos, editCell, pagedData, resolvedColumns, rowKey,
-    onCellEdit, scrollToRow, scrollToCol, runValidator, onFocusedRowChange, markDirty])
+    onCellEdit, scrollToRow, scrollToCol, runValidator, onFocusedRowChange])
 
   // ── 키보드 핸들러 (스크롤 컨테이너에 적용) ────
   const handleContainerKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -671,7 +664,8 @@ export function DataGrid<T = Record<string, unknown>>({
             if (record) {
               const col = resolvedColumns.find(c => c.key === editCell.colKey)
               const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
-              if (String(value) !== String(oldValue ?? '')) markDirty(editCell.rowKey, editCell.colKey)
+              const ck = `${String(editCell.rowKey)}::${editCell.colKey}`
+              if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
               onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
               if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
                 const field = col.dataIndex ?? col.key
@@ -745,7 +739,7 @@ export function DataGrid<T = Record<string, unknown>>({
         break
     }
   }, [editCell, activeCellPos, moveActiveCell, commitAndMove,
-    editMode, resolvedColumns, pagedData, rowKey, onCellEdit, runValidator, markDirty])
+    editMode, resolvedColumns, pagedData, rowKey, onCellEdit, runValidator])
 
   // ── 정렬 핸들러 ─────────────────────────────
   const handleSort = useCallback((col: ColumnType<T>) => {
@@ -854,14 +848,15 @@ export function DataGrid<T = Record<string, unknown>>({
     setEditCell(null)
     const col = resolvedColumns.find(c => c.key === colKey)
     const oldValue = getValue(record, col?.dataIndex, colKey)
-    if (String(newValue) !== String(oldValue ?? '')) markDirty(rowK, colKey)
+    const ck = `${String(rowK)}::${colKey}`
+    if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
     onCellEdit?.(rowK, colKey, newValue, record)
     if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
       const field = col.dataIndex ?? col.key
       const updatedRecord = { ...record, [field]: newValue }
       void runValidator(rowK, colKey, newValue, updatedRecord)
     }
-  }, [onCellEdit, resolvedColumns, runValidator, markDirty])
+  }, [onCellEdit, resolvedColumns, runValidator])
 
   // ── 리사이즈 핸들러 ───────────────────────────
   const handleResizeStart = useCallback((e: React.MouseEvent, col: ColumnType<T>) => {
@@ -1189,7 +1184,9 @@ export function DataGrid<T = Record<string, unknown>>({
 
                     const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
                     const validateErr  = validateErrorMap.get(`${String(rk)}::${col.key}`)
-                    const isDirty = dirtyKeys.has(`${String(rk)}::${col.key}`)
+                    const cellKey = `${String(rk)}::${col.key}`
+                    const originalVal = originalValuesRef.current.get(cellKey)
+                    const isDirty = originalVal !== undefined && String(rawValue ?? '') !== String(originalVal ?? '')
 
                     const tdClass = [
                       'datagrid__td',
@@ -1251,8 +1248,8 @@ export function DataGrid<T = Record<string, unknown>>({
                             <InlineEditInput
                               key={`${rk}-${col.key}`}
                               initialValue={rawValue}
+                              originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
                               onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
-                              onDirty={() => markDirty(rk, col.key)}
                             />
                           ) : (
                             <EditCell
