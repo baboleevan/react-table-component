@@ -11,7 +11,7 @@
 // ============================================================
 
 .datagrid {
-  // 런타임 오버라이드를 위해 변수를 CSS 커스텀 프로퍼티로 노출135
+  // 런타임 오버라이드를 위해 변수를 CSS 커스텀 프로퍼티로 노출
   --grid-bg: #{$grid-bg};
   --grid-border-color: #{$grid-border-color};
   --grid-header-bg: #{$grid-header-bg};
@@ -23,6 +23,7 @@
   --grid-row-selected-bg: #{$grid-row-selected-bg};
   --grid-row-stripe-bg: #{$grid-row-stripe-bg};
   --grid-edit-border-color: #{$grid-edit-border-color};
+  --grid-cell-dirty-bg: #{$grid-cell-dirty-bg};
   --grid-font-size: #{$grid-font-size};
   --grid-cell-padding-v: #{$grid-cell-padding-v};
   --grid-cell-padding-h: #{$grid-cell-padding-h};
@@ -221,6 +222,21 @@
 
     &.stripe .datagrid__td.fixed-left,
     &.stripe .datagrid__td.fixed-right      { background: var(--grid-row-stripe-bg); }
+
+    // dirty 셀은 행 상태(hover/focus/selected/stripe)보다 우선
+    &:hover .datagrid__td.dirty,
+    &.focused .datagrid__td.dirty,
+    &.selected .datagrid__td.dirty,
+    &.stripe .datagrid__td.dirty            { background: var(--grid-cell-dirty-bg); }
+
+    &:hover .datagrid__td.dirty.fixed-left,
+    &:hover .datagrid__td.dirty.fixed-right,
+    &.focused .datagrid__td.dirty.fixed-left,
+    &.focused .datagrid__td.dirty.fixed-right,
+    &.selected .datagrid__td.dirty.fixed-left,
+    &.selected .datagrid__td.dirty.fixed-right,
+    &.stripe .datagrid__td.dirty.fixed-left,
+    &.stripe .datagrid__td.dirty.fixed-right { background: var(--grid-cell-dirty-bg); }
   }
 
   &__td {
@@ -266,6 +282,15 @@
     &.inline-editing {
       padding: 0;
       overflow: visible;
+    }
+
+    // 편집된(dirty) 셀
+    &.dirty {
+      background-color: var(--grid-cell-dirty-bg);
+    }
+
+    &.dirty .datagrid__editor--inline {
+      background-color: var(--grid-cell-dirty-bg);
     }
 
     // 키보드 포커스된 활성 셀 (편집 중 아님)
@@ -565,15 +590,6 @@
       &--word {
         padding: 0 10px;
       }
-    }
-
-    &-ellipsis {
-      display: none;
-      padding: 0 4px;
-      color: rgba(0, 0, 0, 0.45);
-      font-size: 13px;
-      line-height: 32px;
-      user-select: none;
     }
 
     &-size-select {

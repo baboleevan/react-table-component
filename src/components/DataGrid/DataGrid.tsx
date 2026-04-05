@@ -165,21 +165,36 @@ const EditCell = memo(forwardRef<EditCellHandle, EditCellProps>(function EditCel
 const InlineEditInput = memo(function InlineEditInput({
   initialValue,
   onCommit,
+  onDirty,
 }: {
   initialValue: unknown
   onCommit: (value: unknown) => void
+  onDirty?: () => void
 }) {
+  const cancelledRef = useRef(false)
+  const dirtyFiredRef = useRef(false)
+  const initStr = String(initialValue ?? '')
   return (
     <input
       className="datagrid__editor datagrid__editor--inline"
-      defaultValue={String(initialValue ?? '')}
-      onBlur={(e) => onCommit(e.target.value)}
+      defaultValue={initStr}
+      onChange={(e) => {
+        if (!dirtyFiredRef.current && e.target.value !== initStr) {
+          dirtyFiredRef.current = true
+          onDirty?.()
+        }
+      }}
+      onBlur={(e) => {
+        if (!cancelledRef.current) onCommit(e.target.value)
+        cancelledRef.current = false
+      }}
       onKeyDown={(e) => {
         if (e.key === 'Escape') {
-          ;(e.target as HTMLInputElement).value = String(initialValue ?? '')
+          cancelledRef.current = true
+          dirtyFiredRef.current = false
+          ;(e.target as HTMLInputElement).value = initStr
           ;(e.target as HTMLInputElement).blur()
         }
-        // Tab은 컨테이너 keydown 핸들러에서 처리됨
       }}
     />
   )
@@ -357,6 +372,9 @@ export function DataGrid<T = Record<string, unknown>>({
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null)
 
+  // ── 편집된 셀 추적 (dirty) ─────────────────────
+  const [dirtyKeys, setDirtyKeys] = useState<Set<string>>(() => new Set())
+
   // ── 검증 상태 ─────────────────────────────────
   const [validateErrors, setValidateErrors] = useState<ValidateError[]>([])
   // 명령형 핸들(gridRef)에서 최신 상태에 접근하기 위한 ref (stale closure 방지)
@@ -402,7 +420,9 @@ export function DataGrid<T = Record<string, unknown>>({
       const va = getValue(a, col.dataIndex, col.key)
       const vb = getValue(b, col.dataIndex, col.key)
       if (va === vb) return 0
-      return va! < vb! ? -1 : 1
+      if (va == null) return 1
+      if (vb == null) return -1
+      return va < vb ? -1 : 1
     })
     return sortOrder === 'descend' ? sorted.reverse() : sorted
   }, [dataSource, sortKey, sortOrder, leafColumns])
@@ -506,8 +526,6 @@ export function DataGrid<T = Record<string, unknown>>({
     const col = resolvedColumns.find(c => c.key === colKey)
     if (!col?.validator) return
 
-    const errorKey = `${String(rk)}::${colKey}`
-
     // 검증 중 상태 표시
     setValidateErrorsSync(prev => {
       const next = prev.filter(e => !(e.rowKey === rk && e.columnKey === colKey))
@@ -527,8 +545,13 @@ export function DataGrid<T = Record<string, unknown>>({
         return [...next, { rowKey: rk, columnKey: colKey, status: 'error', message: String(err) }]
       })
     }
-    void errorKey  // 미사용 변수 경고 방지
   }, [resolvedColumns, setValidateErrorsSync])
+
+  // ── dirty 마킹 헬퍼 ─────────────────────────
+  const markDirty = useCallback((rowK: string | number, colKey: string) => {
+    const key = `${String(rowK)}::${colKey}`
+    setDirtyKeys(prev => prev.has(key) ? prev : new Set(prev).add(key))
+  }, [])
 
   // ── 활성 셀 이동 ────────────────────────────
   const moveActiveCell = useCallback((rowAbsIdx: number, colIdx: number) => {
@@ -555,10 +578,14 @@ export function DataGrid<T = Record<string, unknown>>({
     // 편집 내용 저장 + onBlur 검증
     const record = pagedData[rowAbsIdx]
     if (record && value !== undefined) {
-      onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
       const col = resolvedColumns.find(c => c.key === editCell.colKey)
+      const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
+      if (String(value) !== String(oldValue ?? '')) markDirty(editCell.rowKey, editCell.colKey)
+      onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
       if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
-        void runValidator(editCell.rowKey, editCell.colKey, value, record)
+        const field = col.dataIndex ?? col.key
+        const updatedRecord = { ...record, [field]: value }
+        void runValidator(editCell.rowKey, editCell.colKey, value, updatedRecord)
       }
     }
 
@@ -567,7 +594,6 @@ export function DataGrid<T = Record<string, unknown>>({
     let nextCol = colIdx
 
     if (direction === 'right') {
-      // 다음 컬럼으로 이동 (편집 여부 무관); 행 끝이면 다음 행 첫 컬럼
       if (colIdx < resolvedColumns.length - 1) {
         nextCol = colIdx + 1
       } else if (rowAbsIdx < pagedData.length - 1) {
@@ -575,7 +601,6 @@ export function DataGrid<T = Record<string, unknown>>({
         nextCol = 0
       }
     } else if (direction === 'left') {
-      // 이전 컬럼으로 이동; 행 시작이면 이전 행 마지막 컬럼
       if (colIdx > 0) {
         nextCol = colIdx - 1
       } else if (rowAbsIdx > 0) {
@@ -597,15 +622,15 @@ export function DataGrid<T = Record<string, unknown>>({
     setFocusedKey(nextRowKey)
     scrollToRow(nextRow)
     scrollToCol(nextCol)
+    onFocusedRowChange?.(nextRecord, nextRow)
 
-    // 다음 셀이 편집 가능한 경우 에디터 열기
     if (nextCol_?.editable) {
       setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
     } else {
       setEditCell(null)
     }
   }, [activeCellPos, editCell, pagedData, resolvedColumns, rowKey,
-    onCellEdit, scrollToRow, scrollToCol, runValidator])
+    onCellEdit, scrollToRow, scrollToCol, runValidator, onFocusedRowChange, markDirty])
 
   // ── 키보드 핸들러 (스크롤 컨테이너에 적용) ────
   const handleContainerKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
@@ -636,16 +661,24 @@ export function DataGrid<T = Record<string, unknown>>({
         return
       }
       if (e.key === 'Enter' && isEditorFocused) {
-        // textarea는 줄바꿈을 허용하므로 컨테이너에서 Enter를 가로채지 않음
         if ((e.target as HTMLElement).tagName === 'TEXTAREA') return
         e.preventDefault()
-        // 이동 없이 커밋 후 에디터 닫기
         if (editCellRef.current) {
           const value = editCellRef.current.getValue()
           editCellRef.current.markCommitted()
           if (activeCellPos) {
             const record = pagedData[activeCellPos.rowAbsIdx]
-            if (record) onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
+            if (record) {
+              const col = resolvedColumns.find(c => c.key === editCell.colKey)
+              const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
+              if (String(value) !== String(oldValue ?? '')) markDirty(editCell.rowKey, editCell.colKey)
+              onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
+              if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
+                const field = col.dataIndex ?? col.key
+                const updatedRecord = { ...record, [field]: value }
+                void runValidator(editCell.rowKey, editCell.colKey, value, updatedRecord)
+              }
+            }
           }
         }
         setEditCell(null)
@@ -712,7 +745,7 @@ export function DataGrid<T = Record<string, unknown>>({
         break
     }
   }, [editCell, activeCellPos, moveActiveCell, commitAndMove,
-    editMode, resolvedColumns, pagedData, rowKey])
+    editMode, resolvedColumns, pagedData, rowKey, onCellEdit, runValidator, markDirty])
 
   // ── 정렬 핸들러 ─────────────────────────────
   const handleSort = useCallback((col: ColumnType<T>) => {
@@ -723,16 +756,30 @@ export function DataGrid<T = Record<string, unknown>>({
     else newOrder = null
     setSortKey(newOrder ? col.key : null)
     setSortOrder(newOrder)
-    // 정렬 시 키보드 위치 초기화
     setActiveCellPos(null)
     setEditCell(null)
+
+    let newSortedData = dataSource
+    if (newOrder) {
+      const sorted = [...dataSource].sort((a, b) => {
+        if (typeof col.sorter === 'function') return col.sorter(a, b)
+        const va = getValue(a, col.dataIndex, col.key)
+        const vb = getValue(b, col.dataIndex, col.key)
+        if (va === vb) return 0
+        if (va == null) return 1
+        if (vb == null) return -1
+        return va < vb ? -1 : 1
+      })
+      newSortedData = newOrder === 'descend' ? sorted.reverse() : sorted
+    }
+
     const sorterResult: SorterResult<T> = {
       column: col, columnKey: col.key, order: newOrder, field: col.dataIndex ?? col.key,
     }
     onChange?.({ current: currentPage, pageSize: currentPageSize }, sorterResult, {
-      currentDataSource: sortedData, action: 'sort',
+      currentDataSource: newSortedData, action: 'sort',
     })
-  }, [sortKey, sortOrder, onChange, currentPage, currentPageSize, sortedData])
+  }, [sortKey, sortOrder, onChange, currentPage, currentPageSize, dataSource])
 
   // ── 페이지네이션 핸들러 ────────────────────────
   const handlePageChange = useCallback((page: number, pageSize: number) => {
@@ -755,11 +802,23 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const handleSelectAll = useCallback((checked: boolean) => {
     if (!rowSelection) return
-    const allKeys = pagedData.map((r, i) => getRowKey(r, rowKey, i))
-    const allRows = [...pagedData]
-    rowSelection.onChange?.(checked ? allKeys : [], checked ? allRows : [])
-    rowSelection.onSelectAll?.(checked, checked ? allRows : [], allRows)
-  }, [rowSelection, pagedData, rowKey])
+    const newKeys: (string | number)[] = []
+    const newRows: T[] = []
+    const changeRows: T[] = []
+    for (let i = 0; i < pagedData.length; i++) {
+      const r = pagedData[i]
+      const key = getRowKey(r, rowKey, i)
+      const disabled = rowSelection.getCheckboxProps?.(r)?.disabled
+      if (disabled) {
+        if (selectedKeys.has(key)) { newKeys.push(key); newRows.push(r) }
+      } else {
+        changeRows.push(r)
+        if (checked) { newKeys.push(key); newRows.push(r) }
+      }
+    }
+    rowSelection.onChange?.(newKeys, newRows)
+    rowSelection.onSelectAll?.(checked, newRows, changeRows)
+  }, [rowSelection, pagedData, rowKey, selectedKeys])
 
   const handleSelectRow = useCallback((record: T, index: number, checked: boolean) => {
     if (!rowSelection) return
@@ -793,13 +852,16 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const handleEditCommit = useCallback((record: T, rowK: string | number, colKey: string, newValue: unknown) => {
     setEditCell(null)
-    onCellEdit?.(rowK, colKey, newValue, record)
-    // validateTrigger === 'onBlur'(기본값)이면 커밋 시 자동 검증
     const col = resolvedColumns.find(c => c.key === colKey)
+    const oldValue = getValue(record, col?.dataIndex, colKey)
+    if (String(newValue) !== String(oldValue ?? '')) markDirty(rowK, colKey)
+    onCellEdit?.(rowK, colKey, newValue, record)
     if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
-      void runValidator(rowK, colKey, newValue, record)
+      const field = col.dataIndex ?? col.key
+      const updatedRecord = { ...record, [field]: newValue }
+      void runValidator(rowK, colKey, newValue, updatedRecord)
     }
-  }, [onCellEdit, resolvedColumns, runValidator])
+  }, [onCellEdit, resolvedColumns, runValidator, markDirty])
 
   // ── 리사이즈 핸들러 ───────────────────────────
   const handleResizeStart = useCallback((e: React.MouseEvent, col: ColumnType<T>) => {
@@ -906,8 +968,10 @@ export function DataGrid<T = Record<string, unknown>>({
       /** dataSource 전체 배열 반환 */
       getData: (): T[] => dataSourceRef.current,
     }
-    // RefObject.current는 읽기 전용이지만 실제로는 mutable (React 내부 구현)
     ;(gridRef as React.MutableRefObject<typeof handle>).current = handle
+    return () => {
+      ;(gridRef as React.MutableRefObject<typeof handle | null>).current = null
+    }
   }, [gridRef])
 
   // ── 헤더 행 계산 ─────────────────────────────
@@ -941,8 +1005,14 @@ export function DataGrid<T = Record<string, unknown>>({
     className,
   ].filter(Boolean).join(' ')
 
-  const allSelected = pagedData.length > 0 && pagedData.every((r, i) => selectedKeys.has(getRowKey(r, rowKey, i)))
-  const indeterminate = !allSelected && pagedData.some((r, i) => selectedKeys.has(getRowKey(r, rowKey, i)))
+  let _enabledCount = 0, _selectedEnabledCount = 0
+  for (let i = 0; i < pagedData.length; i++) {
+    if (rowSelection?.getCheckboxProps?.(pagedData[i])?.disabled) continue
+    _enabledCount++
+    if (selectedKeys.has(getRowKey(pagedData[i], rowKey, i))) _selectedEnabledCount++
+  }
+  const allSelected = _enabledCount > 0 && _selectedEnabledCount === _enabledCount
+  const indeterminate = !allSelected && _selectedEnabledCount > 0
 
   return (
     <div className={rootClass} style={style}>
@@ -1077,6 +1147,7 @@ export function DataGrid<T = Record<string, unknown>>({
                 isStripe ? 'stripe' : '',
                 rowSelection?.clickRowToSelect ? 'clickable' : '',
                 customRowClass,
+                rowExtraProps.className,
               ].filter(Boolean).join(' ')
 
               return (
@@ -1118,6 +1189,7 @@ export function DataGrid<T = Record<string, unknown>>({
 
                     const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
                     const validateErr  = validateErrorMap.get(`${String(rk)}::${col.key}`)
+                    const isDirty = dirtyKeys.has(`${String(rk)}::${col.key}`)
 
                     const tdClass = [
                       'datagrid__td',
@@ -1129,6 +1201,7 @@ export function DataGrid<T = Record<string, unknown>>({
                       isActiveCell && !isEditing ? 'active-cell' : '',
                       col.editable && !isEditing && editMode === 'click' ? 'editable-click' : '',
                       editMode === 'inline' && isEditing ? 'inline-editing' : '',
+                      isDirty ? 'dirty' : '',
                       // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
                       validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
                     ].filter(Boolean).join(' ')
@@ -1149,7 +1222,13 @@ export function DataGrid<T = Record<string, unknown>>({
                           setFocusedKey(rk)
                         } : undefined}
                         onClick={editMode === 'click'
-                          ? (e) => { e.stopPropagation(); handleCellActivate(rk, col.key, col, absIdx, colIdx) }
+                          ? (e) => {
+                            e.stopPropagation()
+                            setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
+                            setFocusedKey(rk)
+                            onFocusedRowChange?.(record, absIdx)
+                            if (col.editable) setEditCell({ rowKey: rk, colKey: col.key })
+                          }
                           : editMode !== 'inline' ? () => {
                             setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
                             setFocusedKey(rk)
@@ -1173,6 +1252,7 @@ export function DataGrid<T = Record<string, unknown>>({
                               key={`${rk}-${col.key}`}
                               initialValue={rawValue}
                               onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
+                              onDirty={() => markDirty(rk, col.key)}
                             />
                           ) : (
                             <EditCell

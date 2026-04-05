@@ -73,7 +73,7 @@ export function BasicDemo() {
             pagination={{
               pageSize: 20,
               showSizeChanger: true,
-              pageSizeOptions: [50, 100, 200],
+              pageSizeOptions: [20, 50, 100, 200],
               showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건`,
             }}
           />

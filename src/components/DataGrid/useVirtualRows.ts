@@ -32,12 +32,14 @@ export function useVirtualRows({
   const scrollToRow = useCallback((rowAbsIdx: number) => {
     const el = containerRef.current
     if (!el) return
+    const thead = el.querySelector('thead')
+    const headerHeight = thead?.getBoundingClientRect().height ?? 0
     const rowTop = rowAbsIdx * rowHeight
     const rowBottom = rowTop + rowHeight
     if (rowTop < el.scrollTop) {
       el.scrollTop = rowTop
-    } else if (rowBottom > el.scrollTop + el.clientHeight) {
-      el.scrollTop = rowBottom - el.clientHeight
+    } else if (rowBottom + headerHeight > el.scrollTop + el.clientHeight) {
+      el.scrollTop = rowBottom + headerHeight - el.clientHeight
     }
   }, [rowHeight])
 

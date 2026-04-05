@@ -21,6 +21,7 @@ $grid-row-stripe-bg: #f8f9fc !default;         // 줄무늬: 극히 연한 블�
 
 $grid-edit-border-color: #1677ff !default;
 $grid-edit-bg: #ffffff !default;
+$grid-cell-dirty-bg: #fffbe6 !default;            // 편집된 셀: 연한 노란색
 
 $grid-font-size: 13px !default;                // 기존 14px → 좀 더 컴팩트
 $grid-line-height: 1.5715 !default;
