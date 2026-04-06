@@ -24,3 +24,13 @@ dist-ssr
 *.sw?
 .playwright-cli
 vite-build-log.txt
+
+# Tests
+coverage
+playwright-report
+test-results
+blob-report
+playwright/.cache
+storybook-static
+*storybook.log
+storybook-static
