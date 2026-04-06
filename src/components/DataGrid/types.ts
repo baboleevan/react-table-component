@@ -139,6 +139,56 @@ export interface ColumnType<T = Record<string, unknown>> {
 }
 
 // ──────────────────────────────────────────────
+// 행 추가 / 삭제 (dataSource는 부모가 제어 — 콜백으로 반영)
+// ──────────────────────────────────────────────
+export interface RowOperationsConfig<T = Record<string, unknown>> {
+  /**
+   * 테이블 상단에 행 추가 버튼 표시.
+   * `onAdd`가 함께 전달될 때만 버튼이 렌더됩니다.
+   */
+  showAdd?: boolean
+  /**
+   * 행 추가 클릭 시 호출 — 부모가 `dataSource`에 새 레코드를 넣습니다.
+   * (고유 `rowKey` 필드는 부모에서 부여하는 것이 안전합니다.)
+   */
+  onAdd?: () => void
+  /**
+   * 각 데이터 행 오른쪽에 삭제 버튼 컬럼 표시.
+   * `onDelete`가 함께 전달될 때만 컬럼이 렌더됩니다.
+   */
+  showDelete?: boolean
+  /**
+   * 해당 행의 삭제 버튼 클릭 시 호출 — 부모가 `dataSource`에서 레코드를 제거합니다.
+   */
+  onDelete?: (rowKey: string | number, record: T) => void
+  /** 행별 삭제 버튼 비활성화 등 */
+  getDeleteButtonProps?: (record: T) => { disabled?: boolean }
+  /** 상단 추가 버튼 레이블 */
+  addLabel?: string
+  /** 삭제 버튼 `title` / `aria-label` (기본: "이 행 삭제") */
+  deleteLabel?: string
+  /** 삭제 컬럼 헤더 (기본: 빈 칸) */
+  deleteColumnTitle?: ReactNode
+  /**
+   * `rowSelection`과 함께 사용 — 툴바에「선택 삭제」버튼 표시.
+   * `onDeleteSelected`·`rowSelection`이 함께 있을 때만 렌더됩니다.
+   */
+  showDeleteSelected?: boolean
+  /**
+   * 선택 삭제 클릭 시 호출 — 부모가 `dataSource`에서 해당 행들을 제거하고
+   * `selectedRowKeys`를 갱신합니다(보통 `onChange([], [])` 또는 남은 키만 전달).
+   */
+  onDeleteSelected?: (selectedRowKeys: (string | number)[], selectedRows: T[]) => void
+  /** 선택 삭제 버튼 레이블 (기본: "선택 삭제") */
+  deleteSelectedLabel?: string
+  /**
+   * 선택 삭제 버튼 `disabled` 오버라이드.
+   * 미지정 시 선택된 행이 없으면 비활성화됩니다.
+   */
+  getDeleteSelectedButtonProps?: () => { disabled?: boolean }
+}
+
+// ──────────────────────────────────────────────
 // 행 선택
 // ──────────────────────────────────────────────
 export interface RowSelectionConfig<T = Record<string, unknown>> {
@@ -214,6 +264,8 @@ export interface DataGridProps<T = Record<string, unknown>> {
   pagination?: PaginationConfig | false
   /** 행 선택 설정 */
   rowSelection?: RowSelectionConfig<T>
+  /** 행 추가(툴바) / 행별 삭제 컬럼 — `dataSource` 변경은 부모에서 처리 */
+  rowOperations?: RowOperationsConfig<T>
   /** 스크롤 설정 */
   scroll?: ScrollConfig
   /** 셀 테두리 표시 */

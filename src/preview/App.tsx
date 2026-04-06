@@ -5,6 +5,7 @@ import { BasicDemo } from './examples/BasicDemo'
 import { PaginationDemo } from './examples/PaginationDemo'
 import { SelectionDemo } from './examples/SelectionDemo'
 import { EditableDemo } from './examples/EditableDemo'
+import { RowAddDeleteDemo } from './examples/RowAddDeleteDemo'
 import { SortingDemo } from './examples/SortingDemo'
 import { FixedColumnsDemo } from './examples/FixedColumnsDemo'
 import { VirtualDemo } from './examples/VirtualDemo'
@@ -35,6 +36,7 @@ export function App() {
             <Route path="/components/pagination" element={<PaginationDemo />} />
             <Route path="/components/selection" element={<SelectionDemo />} />
             <Route path="/components/editable" element={<EditableDemo />} />
+            <Route path="/components/row-add-delete" element={<RowAddDeleteDemo />} />
             <Route path="/components/sorting" element={<SortingDemo />} />
             <Route path="/components/fixed-columns" element={<FixedColumnsDemo />} />
             <Route path="/components/virtual" element={<VirtualDemo />} />

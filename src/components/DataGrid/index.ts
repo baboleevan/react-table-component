@@ -2,6 +2,7 @@ export { DataGrid, default } from './DataGrid'
 export type {
   DataGridProps,
   ColumnType,
+  RowOperationsConfig,
   RowSelectionConfig,
   PaginationConfig,
   ScrollConfig,

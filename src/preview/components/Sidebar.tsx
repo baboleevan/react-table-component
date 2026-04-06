@@ -8,6 +8,7 @@ const MENU = [
       { path: '/components/pagination', label: '페이지네이션' },
       { path: '/components/selection', label: '행 선택 (Row Selection)' },
       { path: '/components/editable', label: '편집 가능 셀 (Editable)' },
+      { path: '/components/row-add-delete', label: '행 추가 / 삭제 (Row operations)' },
       { path: '/components/inline-edit', label: '인라인 편집 (항상 노출)' },
       { path: '/components/sorting', label: '정렬 (Sorting)' },
       { path: '/components/fixed-columns', label: '고정 컬럼 (Fixed)' },

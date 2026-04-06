@@ -107,6 +107,7 @@ function buildHeaderRows<T>(
 
 const DEFAULT_ROW_HEIGHT = 46
 const VIRTUAL_THRESHOLD = 100
+const ROW_OPS_DELETE_COL_WIDTH = 56
 
 // ──────────────────────────────────────────────
 // EditCell — 격리된 ref 전달 컴포넌트
@@ -342,6 +343,7 @@ export function DataGrid<T = Record<string, unknown>>({
   loading = false,
   pagination,
   rowSelection,
+  rowOperations,
   scroll,
   bordered = false,
   striped = false,
@@ -919,6 +921,36 @@ export function DataGrid<T = Record<string, unknown>>({
     [rowSelection, rowKey, pagedData],
   )
 
+  const handleRowDeleteClick = useCallback(
+    (rk: string | number, record: T) => {
+      rowOperations?.onDelete?.(rk, record)
+      setValidateErrorsSync((prev) => prev.filter((e) => String(e.rowKey) !== String(rk)))
+      setEditCell((prev) => (prev && String(prev.rowKey) === String(rk) ? null : prev))
+      setFocusedKey((fk) => (fk !== null && String(fk) === String(rk) ? null : fk))
+      setActiveCellPos(null)
+    },
+    [rowOperations, setValidateErrorsSync],
+  )
+
+  const handleDeleteSelectedClick = useCallback(() => {
+    const onBulk = rowOperations?.onDeleteSelected
+    const rs = rowSelection
+    if (!onBulk || !rs) return
+    const keys = rs.selectedRowKeys ?? []
+    if (keys.length === 0) return
+    const keySet = new Set(keys.map((k) => String(k)))
+    const rows: T[] = []
+    for (let i = 0; i < dataSource.length; i++) {
+      const rec = dataSource[i]
+      if (keySet.has(String(getRowKey(rec, rowKey, i)))) rows.push(rec)
+    }
+    onBulk(keys, rows)
+    setValidateErrorsSync((prev) => prev.filter((e) => !keySet.has(String(e.rowKey))))
+    setEditCell((prev) => (prev && keySet.has(String(prev.rowKey)) ? null : prev))
+    setFocusedKey((fk) => (fk !== null && keySet.has(String(fk)) ? null : fk))
+    setActiveCellPos(null)
+  }, [rowOperations, rowSelection, dataSource, rowKey, setValidateErrorsSync])
+
   // ── 셀 편집 핸들러 ────────────────────────────
   const handleCellActivate = useCallback(
     (rowK: string | number, colKey: string, col: ColumnType<T>, rowAbsIdx: number, colIdx: number) => {
@@ -1064,6 +1096,21 @@ export function DataGrid<T = Record<string, unknown>>({
   const maxDepth = useMemo(() => getMaxDepth(columns), [columns])
   const headerRows = useMemo(() => buildHeaderRows(columns, maxDepth), [columns, maxDepth])
 
+  const hasRowAdd = Boolean(rowOperations?.showAdd && rowOperations.onAdd)
+  const hasRowDelete = Boolean(rowOperations?.showDelete && rowOperations.onDelete)
+  const hasDeleteSelected = Boolean(
+    rowOperations?.showDeleteSelected && rowOperations.onDeleteSelected && rowSelection,
+  )
+  const hasToolbar = hasRowAdd || hasDeleteSelected
+  const tableBodyColSpan = resolvedColumns.length + (rowSelection ? 1 : 0) + (hasRowDelete ? 1 : 0)
+
+  const selectedRowKeysForOps = rowSelection?.selectedRowKeys ?? []
+  const deleteSelectedDisabled = (() => {
+    const override = rowOperations?.getDeleteSelectedButtonProps?.()
+    if (override?.disabled !== undefined) return override.disabled
+    return selectedRowKeysForOps.length === 0
+  })()
+
   // ── 그룹헤더 th sticky-top 오프셋 측정 ───────────────
   // headerRows 선언 이후에 배치해야 deps 참조 가능
   useLayoutEffect(() => {
@@ -1079,7 +1126,7 @@ export function DataGrid<T = Record<string, unknown>>({
     setThTopOffsets((prev) =>
       prev.length === newOffsets.length && prev.every((v, i) => v === newOffsets[i]) ? prev : newOffsets,
     )
-  }, [headerRows])
+  }, [headerRows, hasRowDelete, hasDeleteSelected, rowSelection])
 
   // ── 루트 클래스 ────────────────────────────────
   const rootClass = ['datagrid', `datagrid--${size}`, bordered && 'bordered', className].filter(Boolean).join(' ')
@@ -1102,6 +1149,32 @@ export function DataGrid<T = Record<string, unknown>>({
         </div>
       )}
 
+      {hasToolbar && (
+        <div className="datagrid__toolbar">
+          {hasRowAdd && (
+            <button type="button" className="datagrid__toolbar-btn" onClick={() => rowOperations?.onAdd?.()}>
+              {rowOperations?.addLabel ?? '행 추가'}
+            </button>
+          )}
+          {hasDeleteSelected && (
+            <button
+              type="button"
+              className="datagrid__toolbar-btn datagrid__toolbar-btn--danger"
+              disabled={deleteSelectedDisabled}
+              title={
+                deleteSelectedDisabled && selectedRowKeysForOps.length === 0
+                  ? '삭제할 행을 선택하세요'
+                  : (rowOperations?.deleteSelectedLabel ?? '선택 삭제')
+              }
+              aria-label={rowOperations?.deleteSelectedLabel ?? '선택 삭제'}
+              onClick={() => handleDeleteSelectedClick()}
+            >
+              {rowOperations?.deleteSelectedLabel ?? '선택 삭제'}
+            </button>
+          )}
+        </div>
+      )}
+
       {/* 스크롤 컨테이너 — 키보드 핸들러가 이곳에 위치 */}
       <div
         className="datagrid__scroll"
@@ -1120,6 +1193,7 @@ export function DataGrid<T = Record<string, unknown>>({
             {resolvedColumns.map((col) => (
               <col key={col.key} style={{ width: columnWidths[col.key] ?? col.width }} />
             ))}
+            {hasRowDelete && <col style={{ width: ROW_OPS_DELETE_COL_WIDTH }} />}
           </colgroup>
 
           {/* 헤더 — 다중 행(그룹 헤더) 지원 */}
@@ -1187,6 +1261,15 @@ export function DataGrid<T = Record<string, unknown>>({
                     </th>
                   )
                 })}
+                {rowIdx === 0 && hasRowDelete && (
+                  <th
+                    className="datagrid__th datagrid__th--row-ops"
+                    rowSpan={maxDepth > 1 ? maxDepth : undefined}
+                    style={{ '--th-sticky-top': `${thTopOffsets[0] ?? 0}px` } as React.CSSProperties}
+                  >
+                    {rowOperations?.deleteColumnTitle ?? ''}
+                  </th>
+                )}
               </tr>
             ))}
           </thead>
@@ -1195,13 +1278,13 @@ export function DataGrid<T = Record<string, unknown>>({
           <tbody className="datagrid__tbody">
             {shouldVirtualize && offsetTop > 0 && (
               <tr style={{ height: offsetTop }}>
-                <td colSpan={resolvedColumns.length + (rowSelection ? 1 : 0)} />
+                <td colSpan={tableBodyColSpan} />
               </tr>
             )}
 
             {visibleData.length === 0 && !loading && (
               <tr>
-                <td className="datagrid__empty" colSpan={resolvedColumns.length + (rowSelection ? 1 : 0)}>
+                <td className="datagrid__empty" colSpan={tableBodyColSpan}>
                   {locale?.emptyText ?? '데이터가 없습니다'}
                 </td>
               </tr>
@@ -1375,13 +1458,32 @@ export function DataGrid<T = Record<string, unknown>>({
                       </td>
                     )
                   })}
+                  {hasRowDelete && (
+                    <td
+                      className="datagrid__td datagrid__td--row-ops"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className="datagrid__row-delete-btn"
+                        title={rowOperations?.deleteLabel ?? '이 행 삭제'}
+                        aria-label={rowOperations?.deleteLabel ?? '이 행 삭제'}
+                        disabled={rowOperations?.getDeleteButtonProps?.(record)?.disabled}
+                        onClick={() => handleRowDeleteClick(rk, record)}
+                      >
+                        삭제
+                      </button>
+                    </td>
+                  )}
                 </tr>
               )
             })}
 
             {shouldVirtualize && offsetBottom > 0 && (
               <tr style={{ height: offsetBottom }}>
-                <td colSpan={resolvedColumns.length + (rowSelection ? 1 : 0)} />
+                <td colSpan={tableBodyColSpan} />
               </tr>
             )}
           </tbody>
