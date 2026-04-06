@@ -21,6 +21,7 @@ import { ValidationDemo } from './examples/ValidationDemo'
 import { FocusedRowDemo } from './examples/FocusedRowDemo'
 import { TransferDemo } from './examples/TransferDemo'
 import { ClickRowSelectDemo } from './examples/ClickRowSelectDemo'
+import { AntdFeaturesDemo } from './examples/AntdFeaturesDemo'
 import './preview.scss'
 
 export function App() {
@@ -52,6 +53,7 @@ export function App() {
             <Route path="/components/focused-row" element={<FocusedRowDemo />} />
             <Route path="/components/transfer" element={<TransferDemo />} />
             <Route path="/components/click-row-select" element={<ClickRowSelectDemo />} />
+            <Route path="/components/antd-table-features" element={<AntdFeaturesDemo />} />
           </Routes>
         </main>
       </div>

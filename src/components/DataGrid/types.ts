@@ -1,4 +1,14 @@
-import type { CSSProperties, ReactNode, RefObject } from 'react'
+import type {
+  CSSProperties,
+  ComponentType,
+  HTMLAttributes,
+  Key,
+  MouseEvent as ReactMouseEvent,
+  ReactNode,
+  RefObject,
+  TdHTMLAttributes,
+  ThHTMLAttributes,
+} from 'react'
 
 // ──────────────────────────────────────────────
 // 검증(Validation) 타입
@@ -72,13 +82,36 @@ export interface DataGridHandle<T = Record<string, unknown>> {
 // ──────────────────────────────────────────────
 export type SortOrder = 'ascend' | 'descend' | null
 
+/** 필터 드롭다운 옵션 */
+export interface ColumnFilterItem {
+  text: ReactNode
+  value: Key
+  children?: ColumnFilterItem[]
+}
+
+export type ColumnFilterMode = 'menu' | 'tree'
+
+/** 컬럼 정렬기 — 함수 또는 `{ compare, multiple }` (multiple: 우선순위, 숫자가 작을수록 먼저 적용) */
+export type ColumnSorter<T> =
+  | boolean
+  | ((a: T, b: T) => number)
+  | { compare?: (a: T, b: T) => number; multiple?: number }
+
+/** Ant Design `render` 반환 — 셀 병합용 객체 형태 */
+export type ColumnRenderValue = ReactNode | RenderCellObject
+
+export interface RenderCellObject {
+  children: ReactNode
+  props?: { colSpan?: number; rowSpan?: number }
+}
+
 export interface ColumnType<T = Record<string, unknown>> {
   /** 고유 키; React key 및 데이터 매핑에 사용 */
   key: string
   /** 헤더에 표시할 타이틀 */
   title?: ReactNode
-  /** 데이터 레코드의 필드명 (기본값: key) */
-  dataIndex?: string
+  /** 데이터 레코드의 필드명 또는 중첩 경로 (기본값: key) */
+  dataIndex?: string | (string | number)[]
   /** 컬럼 픽셀 너비 */
   width?: number | string
   /** 최소 픽셀 너비 */
@@ -88,15 +121,45 @@ export interface ColumnType<T = Record<string, unknown>> {
   /** 고정 컬럼 위치 */
   fixed?: 'left' | 'right'
   /** 커스텀 셀 렌더러 — (value, record, rowIndex)를 받습니다 */
-  render?: (value: unknown, record: T, index: number) => ReactNode
+  render?: (value: unknown, record: T, index: number) => ColumnRenderValue
   /** 헤더 셀 인라인 스타일 */
   onHeaderCell?: (column: ColumnType<T>) => { style?: CSSProperties; className?: string }
   /** 바디 셀 인라인 스타일 */
   onCell?: (record: T, index: number) => { style?: CSSProperties; className?: string }
   /** 정렬 가능한 컬럼 */
-  sorter?: boolean | ((a: T, b: T) => number)
+  sorter?: ColumnSorter<T>
   /** 제어 정렬 순서 */
   sortOrder?: SortOrder
+  /** 비제어 초기 정렬 */
+  defaultSortOrder?: SortOrder
+  /** 정렬 아이콘에 title(툴팁) 표시 — `true`면 기본 문구 */
+  showSorterTooltip?: boolean | { title?: ReactNode }
+  /** 필터 옵션 */
+  filters?: ColumnFilterItem[]
+  /** 필터 함수 — 선택된 value마다 행이 하나라도 통과하면 표시(OR) */
+  onFilter?: (value: Key, record: T) => boolean
+  /** 제어 필터 값 */
+  filteredValue?: Key[] | null
+  /** 초기 필터 값 */
+  defaultFilteredValue?: Key[] | null
+  /** 커스텀 필터 패널 */
+  filterDropdown?: (props: ColumnFilterDropdownProps<T>) => ReactNode
+  /** 필터 UI 모드 */
+  filterMode?: ColumnFilterMode
+  /** 필터 목록 내 검색 */
+  filterSearch?: boolean
+  /** 다중 필터 선택 (기본 true) */
+  filterMultiple?: boolean
+  /** 리셋 시 `defaultFilteredValue`로 되돌림 */
+  filterResetToDefaultFilteredValue?: boolean
+  /** 컬럼 숨김 */
+  hidden?: boolean
+  /** 이 브레이크포인트 이상에서만 표시 (min-width 기준, 복수 지정 시 하나라도 만족하면 표시) */
+  responsive?: ('xxl' | 'xl' | 'lg' | 'md' | 'sm' | 'xs')[]
+  /** 헤더 셀 colSpan (리프 컬럼) */
+  colSpan?: number
+  /** 셀 리렌더 생략 — false면 이전과 동일한 출력으로 간주 */
+  shouldCellUpdate?: (record: T, prevRecord: T) => boolean
   /** 그룹 헤더 자식 컬럼 */
   children?: ColumnType<T>[]
   /** 최대 픽셀 너비 (리사이즈 상한) */
@@ -136,6 +199,17 @@ export interface ColumnType<T = Record<string, unknown>> {
    * - 'manual': gridRef.current.validate() 호출 시에만 실행
    */
   validateTrigger?: 'onBlur' | 'manual'
+}
+
+/** `filterDropdown` 렌더 prop 인자 */
+export interface ColumnFilterDropdownProps<T = Record<string, unknown>> {
+  prefixCls?: string
+  setSelectedKeys: (keys: Key[]) => void
+  selectedKeys: Key[]
+  confirm: (options?: { closeDropdown?: boolean }) => void
+  clearFilters?: (options?: { closeDropdown?: boolean; confirm?: boolean }) => void
+  visible: boolean
+  column: ColumnType<T>
 }
 
 // ──────────────────────────────────────────────
@@ -245,7 +319,50 @@ export interface SorterResult<T> {
 // ──────────────────────────────────────────────
 export interface TableCurrentDataSource<T> {
   currentDataSource: T[]
-  action: 'paginate' | 'sort' | 'filter'
+  action: 'paginate' | 'sort' | 'filter' | 'expand'
+}
+
+/** Ant Design Table과 동일한 `onChange` 두 번째 인자 */
+export type TableFilters = Record<string, Key[] | null>
+
+export interface ExpandableConfig<T = Record<string, unknown>> {
+  expandedRowRender?: (record: T, index: number, indent: number, expanded: boolean) => ReactNode
+  rowExpandable?: (record: T) => boolean
+  expandedRowKeys?: (string | number)[]
+  defaultExpandedRowKeys?: (string | number)[]
+  onExpand?: (expanded: boolean, record: T) => void
+  onExpandedRowsChange?: (keys: (string | number)[]) => void
+  expandIcon?: (props: {
+    expanded: boolean
+    onExpand: (e?: ReactMouseEvent) => void
+    record: T
+  }) => ReactNode
+  /** 행 클릭 시 확장 토글 (`rowSelection.clickRowToSelect`와 함께 쓰면 이벤트 순서에 유의) */
+  expandRowByClick?: boolean
+  /** 트리 들여쓰기 (px) */
+  indentSize?: number
+  /** 트리 자식 필드명 */
+  childrenColumnName?: string
+}
+
+export interface TableComponents {
+  table?: ComponentType<HTMLAttributes<HTMLTableElement>>
+  header?: {
+    wrapper?: ComponentType<HTMLAttributes<HTMLTableSectionElement>>
+    row?: ComponentType<HTMLAttributes<HTMLTableRowElement>>
+    cell?: ComponentType<ThHTMLAttributes<HTMLTableCellElement>>
+  }
+  body?: {
+    wrapper?: ComponentType<HTMLAttributes<HTMLTableSectionElement>>
+    row?: ComponentType<HTMLAttributes<HTMLTableRowElement>>
+    cell?: ComponentType<TdHTMLAttributes<HTMLTableCellElement>>
+  }
+}
+
+export interface StickyConfig {
+  offsetHeader?: number
+  offsetScroll?: number
+  getContainer?: () => HTMLElement
 }
 
 // ──────────────────────────────────────────────
@@ -284,8 +401,37 @@ export interface DataGridProps<T = Record<string, unknown>> {
   rowClassName?: string | ((record: T, index: number) => string)
   /** 행 이벤트 핸들러 */
   onRow?: (record: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
-  /** 정렬/필터/페이지 변경 콜백 */
-  onChange?: (pagination: PaginationConfig, sorter: SorterResult<T>, extra: TableCurrentDataSource<T>) => void
+  /** 테이블 상단 제목 */
+  title?: (currentPageData: T[]) => ReactNode
+  /** 테이블 하단 푸터 */
+  footer?: (currentPageData: T[]) => ReactNode
+  /** 헤더 행 표시 (기본 true) */
+  showHeader?: boolean
+  /** 헤더 `<tr>`에 붙일 props (그룹 헤더면 행 인덱스 0..n-1) */
+  onHeaderRow?: (columns: ColumnType<T>[], rowIndex: number) => React.HTMLAttributes<HTMLTableRowElement>
+  /** 행 확장 / 트리 */
+  expandable?: ExpandableConfig<T>
+  /** 합계 행 — `TableSummary.Row` / `Cell` 사용 */
+  summary?: (pageData: T[]) => ReactNode
+  /** 합계 `tfoot` sticky 위치 */
+  summaryFixed?: 'top' | 'bottom'
+  /** 테이블·헤더·바디 요소 교체 */
+  components?: TableComponents
+  /** CSS `table-layout` */
+  tableLayout?: 'auto' | 'fixed'
+  /** 필터 드롭다운 등 포털 부모 (기본: document.body) */
+  getPopupContainer?: () => HTMLElement
+  /** 헤더 sticky 보조 — `offsetHeader`는 기존 sticky th에 `--th-sticky-top` 보정으로 반영 */
+  sticky?: boolean | StickyConfig
+  /**
+   * 정렬·필터·페이지 변경 콜백 (Ant Design Table 순서: pagination, filters, sorter, extra)
+   */
+  onChange?: (
+    pagination: PaginationConfig,
+    filters: TableFilters,
+    sorter: SorterResult<T> | SorterResult<T>[],
+    extra: TableCurrentDataSource<T>,
+  ) => void
   /** 셀 편집 커밋 콜백 */
   onCellEdit?: (rowKey: string | number, columnKey: string, newValue: unknown, record: T) => void
   /**

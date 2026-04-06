@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useState,
   useCallback,
   useMemo,
@@ -8,7 +9,11 @@ import {
   useRef,
   forwardRef,
   useImperativeHandle,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
+  type Key,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from 'react'
 import type {
   DataGridProps,
@@ -18,8 +23,13 @@ import type {
   InternalColumnType,
   ValidateError,
   ValidateResult,
+  TableFilters,
 } from './types'
 import { useVirtualRows } from './useVirtualRows'
+import { useGridBreakpoint } from './useGridBreakpoint'
+import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorterMultiple } from './tableUtils'
+import { applyColumnFilters, applyMultiSort, flattenTreeRows, type FlatTreeRow } from './sortAndFilter'
+import { ColumnFilterDropdownPanel } from './ColumnFilterDropdown'
 import './DataGrid.scss'
 
 // ──────────────────────────────────────────────
@@ -29,12 +39,6 @@ function getRowKey<T>(record: T, rowKey: DataGridProps<T>['rowKey'], index: numb
   if (typeof rowKey === 'function') return rowKey(record)
   if (typeof rowKey === 'string') return (record as Record<string, unknown>)[rowKey] as string | number
   return index
-}
-
-function getValue<T>(record: T, dataIndex?: string, key?: string): unknown {
-  const field = dataIndex ?? key
-  if (!field) return undefined
-  return (record as Record<string, unknown>)[field]
 }
 
 function resolveFixedOffsets<T>(columns: ColumnType<T>[]): InternalColumnType<T>[] {
@@ -108,6 +112,59 @@ function buildHeaderRows<T>(
 const DEFAULT_ROW_HEIGHT = 46
 const VIRTUAL_THRESHOLD = 100
 const ROW_OPS_DELETE_COL_WIDTH = 56
+
+/** Tab 이동용: 읽기 순서로 한 칸 오른쪽 (행 끝이면 다음 행 첫 칸) */
+function stepCellRight(
+  row: number,
+  col: number,
+  numRows: number,
+  numCols: number,
+): { row: number; col: number } | null {
+  if (numCols <= 0 || numRows <= 0) return null
+  if (col < numCols - 1) return { row, col: col + 1 }
+  if (row < numRows - 1) return { row: row + 1, col: 0 }
+  return null
+}
+
+function stepCellLeft(
+  row: number,
+  col: number,
+  numRows: number,
+  numCols: number,
+): { row: number; col: number } | null {
+  if (numCols <= 0 || numRows <= 0) return null
+  if (col > 0) return { row, col: col - 1 }
+  if (row > 0) return { row: row - 1, col: numCols - 1 }
+  return null
+}
+
+function findNextEditableRight(
+  startRow: number,
+  startCol: number,
+  columns: { editable?: boolean }[],
+  numRows: number,
+): { row: number; col: number } | null {
+  let pos = stepCellRight(startRow, startCol, numRows, columns.length)
+  while (pos) {
+    if (columns[pos.col]?.editable) return pos
+    pos = stepCellRight(pos.row, pos.col, numRows, columns.length)
+  }
+  return null
+}
+
+function findNextEditableLeft(
+  startRow: number,
+  startCol: number,
+  columns: { editable?: boolean }[],
+  numRows: number,
+): { row: number; col: number } | null {
+  let pos = stepCellLeft(startRow, startCol, numRows, columns.length)
+  while (pos) {
+    if (columns[pos.col]?.editable) return pos
+    pos = stepCellLeft(pos.row, pos.col, numRows, columns.length)
+  }
+  return null
+}
 
 // ──────────────────────────────────────────────
 // EditCell — 격리된 ref 전달 컴포넌트
@@ -208,14 +265,52 @@ const InlineEditInput = memo(function InlineEditInput({
 // ──────────────────────────────────────────────
 // 정렬 아이콘
 // ──────────────────────────────────────────────
-function SortIcon({ order }: { order: SortOrder }) {
+function SortIcon({
+  order,
+  tooltip,
+}: {
+  order: SortOrder
+  tooltip?: boolean | { title?: ReactNode }
+}) {
+  const title =
+    tooltip === true
+      ? order === 'ascend'
+        ? '오름차순'
+        : order === 'descend'
+          ? '내림차순'
+          : '정렬'
+      : typeof tooltip === 'object'
+        ? tooltip.title
+        : undefined
+  const titleAttr = typeof title === 'string' ? title : undefined
   return (
-    <span className="datagrid__sort-icon" aria-hidden="true">
+    <span className="datagrid__sort-icon" aria-hidden="true" title={titleAttr}>
       <span className={order === 'ascend' ? 'active' : ''}>▲</span>
       <span className={order === 'descend' ? 'active' : ''}>▼</span>
     </span>
   )
 }
+
+const GridCellInner = memo(function GridCellInner({
+  col,
+  record,
+  absIdx,
+  rawValue,
+}: {
+  col: ColumnType<Record<string, unknown>>
+  record: Record<string, unknown>
+  absIdx: number
+  rawValue: unknown
+}) {
+  if (!col.render) return <>{rawValue as ReactNode}</>
+  const out = normalizeCellRenderResult(col.render(rawValue, record, absIdx))
+  return <>{out.children}</>
+},
+(prev, next) => {
+  const fn = next.col.shouldCellUpdate
+  if (fn) return !fn(next.record, prev.record)
+  return prev.record === next.record && prev.rawValue === next.rawValue && prev.absIdx === next.absIdx
+})
 
 // ──────────────────────────────────────────────
 // 페이지네이션 바
@@ -362,10 +457,21 @@ export function DataGrid<T = Record<string, unknown>>({
   gridRef,
   onValidateChange,
   onFocusedRowChange,
+  title,
+  footer,
+  showHeader = true,
+  onHeaderRow,
+  expandable,
+  summary,
+  summaryFixed,
+  components,
+  tableLayout = 'fixed',
+  getPopupContainer,
+  sticky,
 }: DataGridProps<T>) {
-  // ── 정렬 ─────────────────────────────────────
-  const [sortKey, setSortKey] = useState<string | null>(null)
-  const [sortOrder, setSortOrder] = useState<SortOrder>(null)
+  // ── 정렬 (다중 컬럼: Shift+클릭) ─────────────────
+  const [sortStates, setSortStates] = useState<{ columnKey: string; order: 'ascend' | 'descend' }[]>([])
+  const sortInitRef = useRef(false)
 
   // ── 포커스된 행 (클릭 하이라이트) ────────────
   const [focusedKey, setFocusedKey] = useState<string | number | null>(null)
@@ -383,9 +489,114 @@ export function DataGrid<T = Record<string, unknown>>({
     pagination !== false && pagination?.pageSize ? pagination.pageSize : 10,
   )
 
-  // 리프 컬럼 (그룹 헤더 자식 포함) — 실제 데이터 셀에 대응
-  const leafColumns = useMemo(() => getLeafColumns(columns), [columns])
+  useGridBreakpoint()
+  const effectiveColumns = useMemo(() => filterColumnsTree(columns), [columns])
+  const leafColumns = useMemo(() => getLeafColumns(effectiveColumns), [effectiveColumns])
   const resolvedColumns = useMemo(() => resolveFixedOffsets(leafColumns), [leafColumns])
+
+  const getRowKeyForRecord = useCallback(
+    (record: T) => {
+      if (typeof rowKey === 'function') return rowKey(record)
+      return (record as Record<string, unknown>)[rowKey as string] as string | number
+    },
+    [rowKey],
+  )
+
+  const [internalFilters, setInternalFilters] = useState<TableFilters>(() => {
+    const m: TableFilters = {}
+    for (const c of getLeafColumns(filterColumnsTree(columns))) {
+      if (c.defaultFilteredValue?.length) m[c.key] = [...c.defaultFilteredValue]
+    }
+    return m
+  })
+  const [openFilterKey, setOpenFilterKey] = useState<string | null>(null)
+  const [filterAnchorEl, setFilterAnchorEl] = useState<HTMLElement | null>(null)
+
+  const [internalExpandedKeys, setInternalExpandedKeys] = useState<(string | number)[]>(
+    () => expandable?.defaultExpandedRowKeys ?? [],
+  )
+
+  const expandedKeysList = expandable?.expandedRowKeys ?? internalExpandedKeys
+  const expandedKeysSet = useMemo(() => new Set(expandedKeysList.map((k) => String(k))), [expandedKeysList])
+
+  const mergedFilters = useMemo(() => {
+    const out: TableFilters = {}
+    for (const c of leafColumns) {
+      const hasFilter = (c.filters?.length && c.onFilter) || c.filterDropdown
+      if (!hasFilter) continue
+      const v = c.filteredValue !== undefined ? c.filteredValue : internalFilters[c.key]
+      out[c.key] = v === undefined ? null : v
+    }
+    return out
+  }, [leafColumns, internalFilters])
+
+  useEffect(() => {
+    if (sortInitRef.current) return
+    const initial: { columnKey: string; order: 'ascend' | 'descend' }[] = []
+    for (const c of leafColumns) {
+      const o = c.defaultSortOrder
+      if (o === 'ascend' || o === 'descend') initial.push({ columnKey: c.key, order: o })
+    }
+    if (initial.length) {
+      sortInitRef.current = true
+      setSortStates(initial)
+    }
+  }, [leafColumns])
+
+  const effectiveSortStates = useMemo(() => {
+    const fromProps = leafColumns
+      .filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
+      .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
+      .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' }))
+    if (fromProps.length > 0) return fromProps
+    return sortStates
+  }, [leafColumns, sortStates])
+
+  const childrenColumnName = expandable?.childrenColumnName
+  const isTreeMode = Boolean(childrenColumnName)
+
+  const treeFlatRows = useMemo((): FlatTreeRow<T>[] | null => {
+    if (!isTreeMode || !childrenColumnName) return null
+    return flattenTreeRows(dataSource, childrenColumnName, expandedKeysSet, getRowKeyForRecord)
+  }, [dataSource, isTreeMode, childrenColumnName, expandedKeysSet, getRowKeyForRecord])
+
+  const filteredTreeRows = useMemo(() => {
+    if (!treeFlatRows) return null
+    return treeFlatRows.filter(({ record }) => {
+      for (const col of leafColumns) {
+        const selected = mergedFilters[col.key]
+        if (!selected?.length || !col.filters?.length || !col.onFilter) continue
+        if (!selected.some((val) => col.onFilter!(val, record))) return false
+      }
+      return true
+    })
+  }, [treeFlatRows, leafColumns, mergedFilters])
+
+  const filteredFlatData = useMemo(() => {
+    if (treeFlatRows) return null
+    return applyColumnFilters(
+      dataSource,
+      leafColumns as unknown as ColumnType<T>[],
+      mergedFilters as Record<string, Key[] | null | undefined>,
+    )
+  }, [dataSource, treeFlatRows, leafColumns, mergedFilters])
+
+  const sortedFlatData = useMemo(() => {
+    if (treeFlatRows) return null
+    return applyMultiSort(filteredFlatData ?? [], effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
+  }, [treeFlatRows, filteredFlatData, effectiveSortStates, leafColumns])
+
+  const rowPacks = useMemo((): { record: T; depth: number; rowKey: string | number }[] => {
+    if (filteredTreeRows) {
+      return filteredTreeRows.map((r) => ({ record: r.record, depth: r.depth, rowKey: r.rowKey }))
+    }
+    const list = sortedFlatData ?? []
+    return list.map((record, i) => ({
+      record,
+      depth: 0,
+      rowKey: getRowKey(record, rowKey, i),
+    }))
+  }, [filteredTreeRows, sortedFlatData, rowKey])
   // resolvedColumnsRef는 검증 핸들에서 사용 (아래 선언 후 동기화)
 
   // ── 그룹헤더 th sticky-top 오프셋 ───────────────
@@ -435,24 +646,6 @@ export function DataGrid<T = Record<string, unknown>>({
     })
   }, [])
 
-  // ── 정렬 ─────────────────────────────────────
-  const sortedData = useMemo(() => {
-    if (!sortKey || !sortOrder) return dataSource
-    // 그룹 헤더(children) 구조에서도 정확히 찾으려면 leafColumns 사용
-    const col = leafColumns.find((c) => c.key === sortKey)
-    if (!col?.sorter) return dataSource
-    const sorted = [...dataSource].sort((a, b) => {
-      if (typeof col.sorter === 'function') return col.sorter(a, b)
-      const va = getValue(a, col.dataIndex, col.key)
-      const vb = getValue(b, col.dataIndex, col.key)
-      if (va === vb) return 0
-      if (va == null) return 1
-      if (vb == null) return -1
-      return va < vb ? -1 : 1
-    })
-    return sortOrder === 'descend' ? sorted.reverse() : sorted
-  }, [dataSource, sortKey, sortOrder, leafColumns])
-
   // ── 페이지네이션 ───────────────────────────────
   const isPaginationDisabled = pagination === false
   const paginationConfig = pagination !== false ? (pagination ?? null) : null
@@ -462,16 +655,21 @@ export function DataGrid<T = Record<string, unknown>>({
   const isControlledPagination = paginationConfig?.current !== undefined && paginationConfig?.total !== undefined
   const currentPage = isControlledPagination ? (paginationConfig?.current ?? 1) : internalPage
   const currentPageSize = isControlledPagination ? (paginationConfig?.pageSize ?? internalPageSize) : internalPageSize
-  const totalCount = paginationConfig?.total ?? sortedData.length
+  const totalCount = paginationConfig?.total ?? rowPacks.length
 
   const pagedData = useMemo(() => {
-    if (isPaginationDisabled || paginationConfig?.total !== undefined) return sortedData
+    if (isPaginationDisabled || paginationConfig?.total !== undefined) return rowPacks
     const start = (currentPage - 1) * currentPageSize
-    return sortedData.slice(start, start + currentPageSize)
-  }, [sortedData, isPaginationDisabled, paginationConfig, currentPage, currentPageSize])
+    return rowPacks.slice(start, start + currentPageSize)
+  }, [rowPacks, isPaginationDisabled, paginationConfig, currentPage, currentPageSize])
+
+  const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
+  const hasExpandCol = hasExpandRender || isTreeMode
+  const expandColWidth = hasExpandCol ? 40 : 0
 
   // ── 가상화 ───────────────────────────
-  const shouldVirtualize = virtual ?? pagedData.length > VIRTUAL_THRESHOLD
+  const shouldVirtualize =
+    !isTreeMode && !hasExpandCol && (virtual ?? pagedData.length > VIRTUAL_THRESHOLD)
   const {
     containerRef,
     offsetTop,
@@ -493,16 +691,34 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const visibleStartIndex = shouldVirtualize ? visibleRange[0] : 0
 
-  // ── inline 모드: activeCellPos 변경 시 해당 셀의 에디터에 자동 포커스 ──
-  useEffect(() => {
+  // ── inline 모드: 활성 셀 이동 시 에디터 또는(텍스트 전용 셀이면) td에 포커스 — Tab 순서가 그리드 밖으로 새지 않도록 함
+  useLayoutEffect(() => {
     if (editMode !== 'inline' || !activeCellPos || !containerRef.current) return
     const { rowAbsIdx, colIdx } = activeCellPos
     const td = containerRef.current.querySelector<HTMLElement>(`[data-row="${rowAbsIdx}"][data-col="${colIdx}"]`)
-    const focusable = td?.querySelector<HTMLElement>('input, select, textarea')
+    if (!td) return
+    const focusable = td.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea')
+    if (focusable) {
+      if (document.activeElement !== focusable) focusable.focus()
+    } else if (document.activeElement !== td) {
+      td.focus()
+    }
+  }, [editMode, activeCellPos, containerRef])
+
+  // ── dblclick/click 편집: editCell 변경 직후 에디터에 포커스 (Tab으로 이동 시 autoFocus 타이밍상 포커스가 빠져 행 선택 체크박스로 가는 것 방지)
+  useLayoutEffect(() => {
+    if (editMode === 'inline' || !editCell || !containerRef.current) return
+    const rowAbsIdx = pagedData.findIndex((p) => String(p.rowKey) === String(editCell.rowKey))
+    if (rowAbsIdx < 0) return
+    const colIdx = resolvedColumns.findIndex((c) => c.key === editCell.colKey)
+    if (colIdx < 0) return
+    const td = containerRef.current.querySelector<HTMLElement>(`[data-row="${rowAbsIdx}"][data-col="${colIdx}"]`)
+    if (!td) return
+    const focusable = td.querySelector<HTMLElement>('input:not([type="hidden"]), select, textarea')
     if (focusable && document.activeElement !== focusable) {
       focusable.focus()
     }
-  }, [editMode, activeCellPos, containerRef])
+  }, [editMode, editCell, pagedData, resolvedColumns, containerRef])
 
   // ── 가로 스크롤: 컬럼이 보이는 영역 밖이면 스크롤 ──
   const scrollToCol = useCallback(
@@ -515,7 +731,7 @@ export function DataGrid<T = Record<string, unknown>>({
       const selWidth = rowSelection ? 40 : 0
 
       // 해당 컬럼의 절대 좌측 오프셋 계산
-      let absLeft = selWidth
+      let absLeft = selWidth + expandColWidth
       for (let i = 0; i < colIdx; i++) {
         const c = resolvedColumns[i]
         absLeft += columnWidths[c.key] ?? (typeof c.width === 'number' ? c.width : 100)
@@ -544,7 +760,7 @@ export function DataGrid<T = Record<string, unknown>>({
         container.scrollLeft = absLeft + colWidth + fixedRightW - container.clientWidth
       }
     },
-    [containerRef, resolvedColumns, columnWidths, rowSelection],
+    [containerRef, resolvedColumns, columnWidths, rowSelection, expandColWidth],
   )
 
   // ── 셀 검증 실행 (onBlur 또는 내부 호출) ────────
@@ -581,15 +797,16 @@ export function DataGrid<T = Record<string, unknown>>({
     (rowAbsIdx: number, colIdx: number) => {
       const newRow = Math.max(0, Math.min(pagedData.length - 1, rowAbsIdx))
       const newCol = Math.max(0, Math.min(resolvedColumns.length - 1, colIdx))
-      const record = pagedData[newRow]
-      if (!record) return
+      const pack = pagedData[newRow]
+      if (!pack) return
+      const { record, rowKey: rk } = pack
       setActiveCellPos({ rowAbsIdx: newRow, colIdx: newCol })
-      setFocusedKey(getRowKey(record, rowKey, newRow))
+      setFocusedKey(rk)
       scrollToRow(newRow)
       scrollToCol(newCol)
       onFocusedRowChange?.(record, newRow)
     },
-    [pagedData, resolvedColumns.length, rowKey, scrollToRow, scrollToCol, onFocusedRowChange],
+    [pagedData, resolvedColumns.length, scrollToRow, scrollToCol, onFocusedRowChange],
   )
 
   // ── commitAndMove — 현재 편집기를 커밋하고 다음 셀로 이동 ──
@@ -603,62 +820,79 @@ export function DataGrid<T = Record<string, unknown>>({
       editCellRef.current?.markCommitted()
 
       // 편집 내용 저장 + onBlur 검증
-      const record = pagedData[rowAbsIdx]
+      const pack = pagedData[rowAbsIdx]
+      const record = pack?.record
       if (record && value !== undefined) {
         const col = resolvedColumns.find((c) => c.key === editCell.colKey)
-        const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
+        const oldValue = getRecordValue(record, col?.dataIndex, editCell.colKey)
         const ck = `${String(editCell.rowKey)}::${editCell.colKey}`
         if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
         onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
         if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
-          const field = col.dataIndex ?? col.key
+          const field = typeof col.dataIndex === 'string' ? col.dataIndex : col.key
           const updatedRecord = { ...record, [field]: value }
           void runValidator(editCell.rowKey, editCell.colKey, value, updatedRecord)
         }
       }
 
-      // 다음 위치 계산
+      const numRows = pagedData.length
+      const focusScrollSoon = () => {
+        requestAnimationFrame(() => {
+          containerRef.current?.focus()
+        })
+      }
+
+      // 다음 위치 계산 (좌우 Tab: 비편집 컬럼은 건너뛰어 다음 editable로 — 포커스가 그리드 밖으로 새지 않게)
       let nextRow = rowAbsIdx
       let nextCol = colIdx
 
       if (direction === 'right') {
-        if (colIdx < resolvedColumns.length - 1) {
-          nextCol = colIdx + 1
-        } else if (rowAbsIdx < pagedData.length - 1) {
-          nextRow = rowAbsIdx + 1
-          nextCol = 0
+        const pos = findNextEditableRight(rowAbsIdx, colIdx, resolvedColumns, numRows)
+        if (!pos) {
+          setEditCell(null)
+          focusScrollSoon()
+          return
         }
+        nextRow = pos.row
+        nextCol = pos.col
       } else if (direction === 'left') {
-        if (colIdx > 0) {
-          nextCol = colIdx - 1
-        } else if (rowAbsIdx > 0) {
-          nextRow = rowAbsIdx - 1
-          nextCol = resolvedColumns.length - 1
+        const pos = findNextEditableLeft(rowAbsIdx, colIdx, resolvedColumns, numRows)
+        if (!pos) {
+          setEditCell(null)
+          focusScrollSoon()
+          return
         }
+        nextRow = pos.row
+        nextCol = pos.col
       } else if (direction === 'down') {
-        nextRow = Math.min(pagedData.length - 1, rowAbsIdx + 1)
+        nextRow = Math.min(numRows - 1, rowAbsIdx + 1)
       } else if (direction === 'up') {
         nextRow = Math.max(0, rowAbsIdx - 1)
       }
 
-      const nextRecord = pagedData[nextRow]
+      const nextPack = pagedData[nextRow]
+      const nextRecord = nextPack?.record
       const nextCol_ = resolvedColumns[nextCol]
       if (!nextRecord || !nextCol_) {
         setEditCell(null)
+        focusScrollSoon()
         return
       }
 
-      const nextRowKey = getRowKey(nextRecord, rowKey, nextRow)
+      const nextRowKey = nextPack.rowKey
       setActiveCellPos({ rowAbsIdx: nextRow, colIdx: nextCol })
       setFocusedKey(nextRowKey)
       scrollToRow(nextRow)
       scrollToCol(nextCol)
       onFocusedRowChange?.(nextRecord, nextRow)
 
-      if (nextCol_?.editable) {
+      if (direction === 'right' || direction === 'left') {
+        setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
+      } else if (nextCol_.editable) {
         setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
       } else {
         setEditCell(null)
+        focusScrollSoon()
       }
     },
     [
@@ -666,12 +900,12 @@ export function DataGrid<T = Record<string, unknown>>({
       editCell,
       pagedData,
       resolvedColumns,
-      rowKey,
       onCellEdit,
       scrollToRow,
       scrollToCol,
       runValidator,
       onFocusedRowChange,
+      containerRef,
     ],
   )
 
@@ -711,15 +945,15 @@ export function DataGrid<T = Record<string, unknown>>({
             const value = editCellRef.current.getValue()
             editCellRef.current.markCommitted()
             if (activeCellPos) {
-              const record = pagedData[activeCellPos.rowAbsIdx]
+              const record = pagedData[activeCellPos.rowAbsIdx]?.record
               if (record) {
                 const col = resolvedColumns.find((c) => c.key === editCell.colKey)
-                const oldValue = getValue(record, col?.dataIndex, editCell.colKey)
+                const oldValue = getRecordValue(record, col?.dataIndex, editCell.colKey)
                 const ck = `${String(editCell.rowKey)}::${editCell.colKey}`
                 if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
                 onCellEdit?.(editCell.rowKey, editCell.colKey, value, record)
                 if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
-                  const field = col.dataIndex ?? col.key
+                  const field = typeof col.dataIndex === 'string' ? col.dataIndex : col.key
                   const updatedRecord = { ...record, [field]: value }
                   void runValidator(editCell.rowKey, editCell.colKey, value, updatedRecord)
                 }
@@ -727,6 +961,10 @@ export function DataGrid<T = Record<string, unknown>>({
             }
           }
           setEditCell(null)
+          // 입력이 언마운트되며 포커스가 사라지면 다음 Tab이 그리드 밖(사이드바 등)으로 새므로 컨테이너로 되돌림
+          requestAnimationFrame(() => {
+            containerRef.current?.focus()
+          })
           return
         }
         // Escape는 EditCell 내부에서 처리됩니다; 여기서는 건너뜁니다
@@ -779,8 +1017,8 @@ export function DataGrid<T = Record<string, unknown>>({
           e.preventDefault()
           const col = resolvedColumns[activeCellPos.colIdx]
           if (col?.editable) {
-            const rec = pagedData[activeCellPos.rowAbsIdx]
-            if (rec) setEditCell({ rowKey: getRowKey(rec, rowKey, activeCellPos.rowAbsIdx), colKey: col.key })
+            const pk = pagedData[activeCellPos.rowAbsIdx]
+            if (pk) setEditCell({ rowKey: pk.rowKey, colKey: col.key })
           }
           break
         }
@@ -798,51 +1036,74 @@ export function DataGrid<T = Record<string, unknown>>({
       editMode,
       resolvedColumns,
       pagedData,
-      rowKey,
       onCellEdit,
       runValidator,
+      containerRef,
     ],
   )
 
-  // ── 정렬 핸들러 ─────────────────────────────
+  // ── 정렬 핸들러 (Shift+클릭: 다중 정렬) ───────────
   const handleSort = useCallback(
-    (col: ColumnType<T>) => {
-      if (!col.sorter) return
-      let newOrder: SortOrder
-      if (sortKey !== col.key) newOrder = 'ascend'
-      else if (sortOrder === 'ascend') newOrder = 'descend'
-      else newOrder = null
-      setSortKey(newOrder ? col.key : null)
-      setSortOrder(newOrder)
+    (col: ColumnType<T>, e?: ReactMouseEvent) => {
+      if (!col.sorter || isTreeMode) return
+      const shift = e?.shiftKey
       setActiveCellPos(null)
       setEditCell(null)
 
-      let newSortedData = dataSource
-      if (newOrder) {
-        const sorted = [...dataSource].sort((a, b) => {
-          if (typeof col.sorter === 'function') return col.sorter(a, b)
-          const va = getValue(a, col.dataIndex, col.key)
-          const vb = getValue(b, col.dataIndex, col.key)
-          if (va === vb) return 0
-          if (va == null) return 1
-          if (vb == null) return -1
-          return va < vb ? -1 : 1
-        })
-        newSortedData = newOrder === 'descend' ? sorted.reverse() : sorted
+      const sorterField = (c: ColumnType<T>) => {
+        const di = c.dataIndex
+        return Array.isArray(di) ? di.join('.') : (di ?? c.key)
       }
 
-      const sorterResult: SorterResult<T> = {
-        column: col,
-        columnKey: col.key,
-        order: newOrder,
-        field: col.dataIndex ?? col.key,
-      }
-      onChange?.({ current: currentPage, pageSize: currentPageSize }, sorterResult, {
-        currentDataSource: newSortedData,
-        action: 'sort',
+      setSortStates((prev) => {
+        const fromProps = leafColumns.filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
+        const base =
+          fromProps.length > 0
+            ? fromProps
+                .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
+                .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' }))
+            : prev
+
+        const ex = base.find((s) => s.columnKey === col.key)
+        let next: { columnKey: string; order: 'ascend' | 'descend' }[]
+        if (!shift) {
+          if (!ex) next = [{ columnKey: col.key, order: 'ascend' }]
+          else if (ex.order === 'ascend') next = [{ columnKey: col.key, order: 'descend' }]
+          else next = []
+        } else {
+          const i = base.findIndex((s) => s.columnKey === col.key)
+          if (i < 0) next = [...base, { columnKey: col.key, order: 'ascend' }]
+          else if (base[i].order === 'ascend')
+            next = base.map((s, j) => (j === i ? { ...s, order: 'descend' as const } : s))
+          else next = base.filter((s) => s.columnKey !== col.key)
+        }
+
+        const filtered = applyColumnFilters(
+          dataSource,
+          leafColumns as unknown as ColumnType<T>[],
+          mergedFilters as Record<string, Key[] | null | undefined>,
+        )
+        const after = applyMultiSort(filtered, next, leafColumns as unknown as ColumnType<T>[])
+        const sr: SorterResult<T>[] = next.map((s) => {
+          const c = leafColumns.find((x) => x.key === s.columnKey)!
+          return {
+            column: c,
+            columnKey: s.columnKey,
+            order: s.order,
+            field: sorterField(c),
+          }
+        })
+        onChange?.(
+          { current: currentPage, pageSize: currentPageSize },
+          mergedFilters,
+          sr.length <= 1 ? (sr[0] ?? {}) : sr,
+          { currentDataSource: after, action: 'sort' },
+        )
+
+        return next
       })
     },
-    [sortKey, sortOrder, onChange, currentPage, currentPageSize, dataSource],
+    [isTreeMode, leafColumns, dataSource, mergedFilters, onChange, currentPage, currentPageSize],
   )
 
   // ── 페이지네이션 핸들러 ────────────────────────
@@ -854,16 +1115,23 @@ export function DataGrid<T = Record<string, unknown>>({
       setActiveCellPos(null)
       setEditCell(null)
       paginationConfig?.onChange?.(page, pageSize)
+      const sr: SorterResult<T>[] = effectiveSortStates.map((s) => {
+        const c = leafColumns.find((x) => x.key === s.columnKey)!
+        const di = c.dataIndex
+        const field = Array.isArray(di) ? di.join('.') : (di ?? c.key)
+        return { column: c, columnKey: s.columnKey, order: s.order, field }
+      })
       onChange?.(
         { current: page, pageSize },
-        { order: sortOrder ?? undefined, columnKey: sortKey ?? undefined },
+        mergedFilters,
+        sr.length <= 1 ? (sr[0] ?? {}) : sr,
         {
-          currentDataSource: sortedData,
+          currentDataSource: rowPacks.map((p) => p.record),
           action: 'paginate',
         },
       )
     },
-    [paginationConfig, onChange, sortOrder, sortKey, sortedData],
+    [paginationConfig, onChange, mergedFilters, effectiveSortStates, leafColumns, rowPacks],
   )
 
   // ── 선택 핸들러 ────────────────────────────────
@@ -876,8 +1144,7 @@ export function DataGrid<T = Record<string, unknown>>({
       const newRows: T[] = []
       const changeRows: T[] = []
       for (let i = 0; i < pagedData.length; i++) {
-        const r = pagedData[i]
-        const key = getRowKey(r, rowKey, i)
+        const { record: r, rowKey: key } = pagedData[i]
         const disabled = rowSelection.getCheckboxProps?.(r)?.disabled
         if (disabled) {
           if (selectedKeys.has(key)) {
@@ -895,7 +1162,7 @@ export function DataGrid<T = Record<string, unknown>>({
       rowSelection.onChange?.(newKeys, newRows)
       rowSelection.onSelectAll?.(checked, newRows, changeRows)
     },
-    [rowSelection, pagedData, rowKey, selectedKeys],
+    [rowSelection, pagedData, selectedKeys],
   )
 
   const handleSelectRow = useCallback(
@@ -913,7 +1180,7 @@ export function DataGrid<T = Record<string, unknown>>({
           ? [...(rowSelection.selectedRowKeys ?? []), key]
           : (rowSelection.selectedRowKeys ?? []).filter((k) => k !== key)
         const newKeysSet = new Set(newKeys)
-        newRows = pagedData.filter((r, i) => newKeysSet.has(getRowKey(r, rowKey, i)))
+        newRows = pagedData.filter((p) => newKeysSet.has(p.rowKey)).map((p) => p.record)
       }
       rowSelection.onChange?.(newKeys, newRows)
       rowSelection.onSelect?.(record, checked, newRows)
@@ -966,12 +1233,12 @@ export function DataGrid<T = Record<string, unknown>>({
     (record: T, rowK: string | number, colKey: string, newValue: unknown) => {
       setEditCell(null)
       const col = resolvedColumns.find((c) => c.key === colKey)
-      const oldValue = getValue(record, col?.dataIndex, colKey)
+      const oldValue = getRecordValue(record, col?.dataIndex, colKey)
       const ck = `${String(rowK)}::${colKey}`
       if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
       onCellEdit?.(rowK, colKey, newValue, record)
       if (col?.validator && (col.validateTrigger ?? 'onBlur') === 'onBlur') {
-        const field = col.dataIndex ?? col.key
+        const field = typeof col.dataIndex === 'string' ? col.dataIndex : col.key
         const updatedRecord = { ...record, [field]: newValue }
         void runValidator(rowK, colKey, newValue, updatedRecord)
       }
@@ -1027,7 +1294,7 @@ export function DataGrid<T = Record<string, unknown>>({
           allData.flatMap((record, idx) => {
             const recordKey = getRowKey(record, rk, idx)
             return validatorCols.map(async (col): Promise<Entry> => {
-              const val = getValue(record, col.dataIndex, col.key)
+              const val = getRecordValue(record, col.dataIndex, col.key)
               try {
                 const result = await col.validator!(val, record, recordKey, allData)
                 return { rowKey: recordKey, columnKey: col.key, result }
@@ -1080,7 +1347,7 @@ export function DataGrid<T = Record<string, unknown>>({
         const record = data.find((r, idx) => String(getRowKey(r, prop, idx)) === String(rk))
         if (record === undefined) return undefined
         const col = resolvedColumnsRef.current.find((c) => c.key === columnKey)
-        return getValue(record, col?.dataIndex, columnKey)
+        return getRecordValue(record, col?.dataIndex, columnKey)
       },
 
       /** dataSource 전체 배열 반환 */
@@ -1093,8 +1360,8 @@ export function DataGrid<T = Record<string, unknown>>({
   }, [gridRef])
 
   // ── 헤더 행 계산 ─────────────────────────────
-  const maxDepth = useMemo(() => getMaxDepth(columns), [columns])
-  const headerRows = useMemo(() => buildHeaderRows(columns, maxDepth), [columns, maxDepth])
+  const maxDepth = useMemo(() => getMaxDepth(effectiveColumns), [effectiveColumns])
+  const headerRows = useMemo(() => buildHeaderRows(effectiveColumns, maxDepth), [effectiveColumns, maxDepth])
 
   const hasRowAdd = Boolean(rowOperations?.showAdd && rowOperations.onAdd)
   const hasRowDelete = Boolean(rowOperations?.showDelete && rowOperations.onDelete)
@@ -1102,7 +1369,8 @@ export function DataGrid<T = Record<string, unknown>>({
     rowOperations?.showDeleteSelected && rowOperations.onDeleteSelected && rowSelection,
   )
   const hasToolbar = hasRowAdd || hasDeleteSelected
-  const tableBodyColSpan = resolvedColumns.length + (rowSelection ? 1 : 0) + (hasRowDelete ? 1 : 0)
+  const tableBodyColSpan =
+    resolvedColumns.length + (rowSelection ? 1 : 0) + (hasRowDelete ? 1 : 0) + (hasExpandCol ? 1 : 0)
 
   const selectedRowKeysForOps = rowSelection?.selectedRowKeys ?? []
   const deleteSelectedDisabled = (() => {
@@ -1126,23 +1394,125 @@ export function DataGrid<T = Record<string, unknown>>({
     setThTopOffsets((prev) =>
       prev.length === newOffsets.length && prev.every((v, i) => v === newOffsets[i]) ? prev : newOffsets,
     )
-  }, [headerRows, hasRowDelete, hasDeleteSelected, rowSelection])
+  }, [headerRows, hasRowDelete, hasDeleteSelected, rowSelection, hasExpandCol])
+
+  const rootRef = useRef<HTMLDivElement>(null)
+  const stickyOffset = typeof sticky === 'object' && sticky ? (sticky.offsetHeader ?? 0) : 0
+
+  const resolvePopupContainer = useCallback(() => {
+    return getPopupContainer?.() ?? rootRef.current ?? document.body
+  }, [getPopupContainer])
+
+  const commitColumnFilter = useCallback(
+    (colKey: string, keys: Key[]) => {
+      setInternalFilters((prev) => ({ ...prev, [colKey]: keys.length ? keys : null }))
+      setOpenFilterKey(null)
+      setFilterAnchorEl(null)
+      const newMerged: TableFilters = { ...mergedFilters, [colKey]: keys.length ? keys : null }
+      const filtered = applyColumnFilters(
+        dataSource,
+        leafColumns as unknown as ColumnType<T>[],
+        newMerged as Record<string, Key[] | null | undefined>,
+      )
+      const after = isTreeMode
+        ? filtered
+        : applyMultiSort(filtered, effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
+      const sr: SorterResult<T>[] = effectiveSortStates.map((s) => {
+        const c = leafColumns.find((x) => x.key === s.columnKey)!
+        const di = c.dataIndex
+        const field = Array.isArray(di) ? di.join('.') : (di ?? c.key)
+        return { column: c, columnKey: s.columnKey, order: s.order, field }
+      })
+      onChange?.(
+        { current: currentPage, pageSize: currentPageSize },
+        newMerged,
+        sr.length <= 1 ? (sr[0] ?? {}) : sr,
+        { currentDataSource: after, action: 'filter' },
+      )
+    },
+    [
+      dataSource,
+      leafColumns,
+      mergedFilters,
+      effectiveSortStates,
+      isTreeMode,
+      onChange,
+      currentPage,
+      currentPageSize,
+    ],
+  )
+
+  const clearColumnFilterState = useCallback(
+    (col: ColumnType<T>) => {
+      const keys: Key[] =
+        col.filterResetToDefaultFilteredValue && col.defaultFilteredValue?.length
+          ? [...col.defaultFilteredValue]
+          : []
+      commitColumnFilter(col.key, keys)
+    },
+    [commitColumnFilter],
+  )
+
+  const toggleRowExpand = useCallback(
+    (rk: string | number, record: T, isOpen: boolean) => {
+      const nextOpen = !isOpen
+      expandable?.onExpand?.(nextOpen, record)
+      const list = expandedKeysList
+      const nextKeys = nextOpen
+        ? [...list.filter((k) => String(k) !== String(rk)), rk]
+        : list.filter((k) => String(k) !== String(rk))
+      if (expandable?.expandedRowKeys === undefined) setInternalExpandedKeys(nextKeys)
+      expandable?.onExpandedRowsChange?.(nextKeys)
+
+      const sr: SorterResult<T>[] = effectiveSortStates.map((s) => {
+        const c = leafColumns.find((x) => x.key === s.columnKey)!
+        const di = c.dataIndex
+        const field = Array.isArray(di) ? di.join('.') : (di ?? c.key)
+        return { column: c, columnKey: s.columnKey, order: s.order, field }
+      })
+      onChange?.(
+        { current: currentPage, pageSize: currentPageSize },
+        mergedFilters,
+        sr.length <= 1 ? (sr[0] ?? {}) : sr,
+        { currentDataSource: rowPacks.map((p) => p.record), action: 'expand' },
+      )
+    },
+    [
+      expandable,
+      expandedKeysList,
+      onChange,
+      currentPage,
+      currentPageSize,
+      mergedFilters,
+      effectiveSortStates,
+      leafColumns,
+      rowPacks,
+    ],
+  )
+
+  const TableTag = components?.table ?? 'table'
+  const BodyRowTag = components?.body?.row ?? 'tr'
 
   // ── 루트 클래스 ────────────────────────────────
-  const rootClass = ['datagrid', `datagrid--${size}`, bordered && 'bordered', className].filter(Boolean).join(' ')
+  const rootClass = ['datagrid', `datagrid--${size}`, bordered && 'bordered', className]
+    .filter(Boolean)
+    .join(' ')
 
   let _enabledCount = 0,
     _selectedEnabledCount = 0
   for (let i = 0; i < pagedData.length; i++) {
-    if (rowSelection?.getCheckboxProps?.(pagedData[i])?.disabled) continue
+    const { record: pr, rowKey: pk } = pagedData[i]
+    if (rowSelection?.getCheckboxProps?.(pr)?.disabled) continue
     _enabledCount++
-    if (selectedKeys.has(getRowKey(pagedData[i], rowKey, i))) _selectedEnabledCount++
+    if (selectedKeys.has(pk)) _selectedEnabledCount++
   }
   const allSelected = _enabledCount > 0 && _selectedEnabledCount === _enabledCount
   const indeterminate = !allSelected && _selectedEnabledCount > 0
 
+  const openFilterColumn = openFilterKey ? leafColumns.find((c) => c.key === openFilterKey) : undefined
+
   return (
-    <div className={rootClass} style={style}>
+    <div className={rootClass} style={style} ref={rootRef}>
       {loading && (
         <div className="datagrid__loading">
           <div className="datagrid__spinner" />
@@ -1175,6 +1545,10 @@ export function DataGrid<T = Record<string, unknown>>({
         </div>
       )}
 
+      {title && (
+        <div className="datagrid__caption datagrid__caption--top">{title(pagedData.map((p) => p.record))}</div>
+      )}
+
       {/* 스크롤 컨테이너 — 키보드 핸들러가 이곳에 위치 */}
       <div
         className="datagrid__scroll"
@@ -1187,8 +1561,12 @@ export function DataGrid<T = Record<string, unknown>>({
         onKeyDown={handleContainerKeyDown}
         style={{ overflowX: scroll?.x ? 'auto' : undefined, outline: 'none' }}
       >
-        <table className="datagrid__table" style={{ minWidth: scroll?.x === true ? undefined : scroll?.x }}>
+        <TableTag
+          className="datagrid__table"
+          style={{ minWidth: scroll?.x === true ? undefined : scroll?.x, tableLayout }}
+        >
           <colgroup>
+            {hasExpandCol && <col style={{ width: expandColWidth }} />}
             {rowSelection && <col style={{ width: 40 }} />}
             {resolvedColumns.map((col) => (
               <col key={col.key} style={{ width: columnWidths[col.key] ?? col.width }} />
@@ -1197,18 +1575,35 @@ export function DataGrid<T = Record<string, unknown>>({
           </colgroup>
 
           {/* 헤더 — 다중 행(그룹 헤더) 지원 */}
-          <thead className="datagrid__thead" ref={theadRef}>
-            {headerRows.map((row, rowIdx) => (
-              <tr key={rowIdx}>
-                {rowIdx === 0 && rowSelection && (
+          {showHeader && (
+            <thead className="datagrid__thead" ref={theadRef}>
+              {headerRows.map((row, rowIdx) => (
+                <tr key={rowIdx} {...(onHeaderRow?.(row.map((x) => x.col), rowIdx) ?? {})}>
+                  {rowIdx === 0 && hasExpandCol && (
+                    <th
+                      className="datagrid__th datagrid__expand-col"
+                      rowSpan={maxDepth > 1 ? maxDepth : undefined}
+                      style={
+                        {
+                          '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                        } as CSSProperties
+                      }
+                    />
+                  )}
+                  {rowIdx === 0 && rowSelection && (
                   <th
                     className="datagrid__th datagrid__selection-col"
                     rowSpan={maxDepth > 1 ? maxDepth : undefined}
-                    style={{ '--th-sticky-top': `${thTopOffsets[0] ?? 0}px` } as React.CSSProperties}
+                    style={
+                      {
+                        '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                      } as CSSProperties
+                    }
                   >
                     {(rowSelection.type ?? 'checkbox') === 'checkbox' && (
                       <input
                         type="checkbox"
+                        tabIndex={-1}
                         checked={allSelected}
                         ref={(el) => {
                           if (el) el.indeterminate = indeterminate
@@ -1220,13 +1615,15 @@ export function DataGrid<T = Record<string, unknown>>({
                 )}
                 {row.map(({ col, colSpan, rowSpan }) => {
                   const isLeaf = !col.children?.length
-                  const isCurrentSort = sortKey === col.key
+                  const sortState = effectiveSortStates.find((s) => s.columnKey === col.key)
+                  const currentOrder: SortOrder = sortState ? sortState.order : null
+                  const isCurrentSort = Boolean(currentOrder)
                   const leafInternal = resolvedColumns.find((c) => c.key === col.key)
                   const thClass = [
                     'datagrid__th',
                     col.align ? `align-${col.align}` : '',
                     isLeaf && col.sorter ? 'sortable' : '',
-                    isLeaf && isCurrentSort && sortOrder ? 'sorted' : '',
+                    isLeaf && isCurrentSort && currentOrder ? 'sorted' : '',
                     isLeaf && col.fixed ? `fixed-${col.fixed}` : '',
                     !isLeaf ? 'group-header' : '',
                     isLeaf && col.resizable !== false ? 'resizable' : '',
@@ -1234,9 +1631,16 @@ export function DataGrid<T = Record<string, unknown>>({
                     .filter(Boolean)
                     .join(' ')
 
-                  const stickyStyle: React.CSSProperties = {
-                    '--th-sticky-top': `${thTopOffsets[rowIdx] ?? 0}px`,
-                  } as React.CSSProperties
+                  const effectiveColSpan =
+                    isLeaf && col.colSpan != null && col.colSpan > 1
+                      ? col.colSpan
+                      : colSpan > 1
+                        ? colSpan
+                        : undefined
+
+                  const stickyStyle: CSSProperties = {
+                    '--th-sticky-top': `${(thTopOffsets[rowIdx] ?? 0) + stickyOffset}px`,
+                  } as CSSProperties
                   if (isLeaf && col.fixed === 'left') {
                     ;(stickyStyle as Record<string, unknown>)['--sticky-left'] = `${leafInternal?._left ?? 0}px`
                   }
@@ -1244,17 +1648,49 @@ export function DataGrid<T = Record<string, unknown>>({
                     ;(stickyStyle as Record<string, unknown>)['--sticky-right'] = `${leafInternal?._right ?? 0}px`
                   }
 
+                  const hasFilter = Boolean(
+                    isLeaf && ((col.filters?.length && col.onFilter) || col.filterDropdown),
+                  )
+
                   return (
                     <th
                       key={col.key}
                       className={thClass}
-                      colSpan={colSpan > 1 ? colSpan : undefined}
+                      colSpan={effectiveColSpan}
                       rowSpan={rowSpan > 1 ? rowSpan : undefined}
                       style={stickyStyle}
-                      onClick={isLeaf ? () => handleSort(col) : undefined}
+                      onClick={
+                        isLeaf
+                          ? (e) => {
+                              if ((e.target as HTMLElement).closest('.datagrid__filter-trigger')) return
+                              handleSort(col, e)
+                            }
+                          : undefined
+                      }
                     >
-                      {col.title}
-                      {isLeaf && col.sorter && <SortIcon order={isCurrentSort ? sortOrder : null} />}
+                      <div className="datagrid__th-inner">
+                        <span className="datagrid__th-title">{col.title}</span>
+                        {hasFilter && (
+                          <button
+                            type="button"
+                            className="datagrid__filter-trigger"
+                            aria-label="필터"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setFilterAnchorEl(e.currentTarget)
+                              setOpenFilterKey((k) => (k === col.key ? null : col.key))
+                            }}
+                          >
+                            ▾
+                          </button>
+                        )}
+                        {isLeaf && col.sorter && (
+                          <SortIcon
+                            order={isCurrentSort ? currentOrder : null}
+                            tooltip={col.showSorterTooltip}
+                          />
+                        )}
+                      </div>
                       {isLeaf && col.resizable !== false && (
                         <span className="datagrid__resize-handle" onMouseDown={(e) => handleResizeStart(e, col)} />
                       )}
@@ -1265,14 +1701,19 @@ export function DataGrid<T = Record<string, unknown>>({
                   <th
                     className="datagrid__th datagrid__th--row-ops"
                     rowSpan={maxDepth > 1 ? maxDepth : undefined}
-                    style={{ '--th-sticky-top': `${thTopOffsets[0] ?? 0}px` } as React.CSSProperties}
+                    style={
+                      {
+                        '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                      } as CSSProperties
+                    }
                   >
                     {rowOperations?.deleteColumnTitle ?? ''}
                   </th>
                 )}
               </tr>
             ))}
-          </thead>
+            </thead>
+          )}
 
           {/* 바디 */}
           <tbody className="datagrid__tbody">
@@ -1290,9 +1731,9 @@ export function DataGrid<T = Record<string, unknown>>({
               </tr>
             )}
 
-            {visibleData.map((record, relIdx) => {
+            {visibleData.map((pack, relIdx) => {
+              const { record, depth, rowKey: rk } = pack
               const absIdx = visibleStartIndex + relIdx
-              const rk = getRowKey(record, rowKey, absIdx)
               const isSelected = selectedKeys.has(rk)
               const isFocused = focusedKey === rk
               const isStripe = striped && absIdx % 2 === 1
@@ -1312,15 +1753,33 @@ export function DataGrid<T = Record<string, unknown>>({
                 .filter(Boolean)
                 .join(' ')
 
+              const rowExpandable = expandable?.rowExpandable?.(record) !== false
+              const isExpanded = expandedKeysSet.has(String(rk))
+              const treeChildren =
+                isTreeMode && childrenColumnName
+                  ? ((record as Record<string, unknown>)[childrenColumnName] as unknown[] | undefined)
+                  : undefined
+              const showTreeToggle = Boolean(isTreeMode && treeChildren && treeChildren.length > 0)
+
+              const onExpandClick = (e?: ReactMouseEvent) => {
+                e?.stopPropagation()
+                if (isTreeMode && showTreeToggle) toggleRowExpand(rk, record, isExpanded)
+                else if (hasExpandRender && rowExpandable) toggleRowExpand(rk, record, isExpanded)
+              }
+
+              const indentPx = (expandable?.indentSize ?? 15) * depth
+
               return (
-                <tr
-                  key={rk}
+                <Fragment key={rk}>
+                  <BodyRowTag
                   {...rowExtraProps}
                   className={trClass}
                   onClick={(e) => {
                     setFocusedKey(rk)
                     onFocusedRowChange?.(record, absIdx)
-                    // clickRowToSelect: 행 클릭으로 체크박스/라디오 토글
+                    if (expandable?.expandRowByClick && rowExpandable && (hasExpandRender || showTreeToggle)) {
+                      toggleRowExpand(rk, record, isExpanded)
+                    }
                     if (rowSelection?.clickRowToSelect) {
                       const disabled = rowSelection.getCheckboxProps?.(record)?.disabled
                       if (!disabled) handleSelectRow(record, absIdx, !isSelected)
@@ -1328,10 +1787,33 @@ export function DataGrid<T = Record<string, unknown>>({
                     rowExtraProps.onClick?.(e)
                   }}
                 >
+                  {hasExpandCol && (
+                    <td className="datagrid__td datagrid__expand-col">
+                      {(hasExpandRender && rowExpandable) || showTreeToggle ? (
+                        expandable?.expandIcon ? (
+                          expandable.expandIcon({
+                            expanded: isExpanded,
+                            onExpand: onExpandClick,
+                            record,
+                          })
+                        ) : (
+                          <button
+                            type="button"
+                            className="datagrid__expand-btn"
+                            aria-expanded={isExpanded}
+                            onClick={onExpandClick}
+                          >
+                            {isExpanded ? '▼' : '▶'}
+                          </button>
+                        )
+                      ) : null}
+                    </td>
+                  )}
                   {rowSelection && (
                     <td className="datagrid__td datagrid__selection-col">
                       <input
                         type={rowSelection.type ?? 'checkbox'}
+                        tabIndex={-1}
                         checked={isSelected}
                         disabled={rowSelection.getCheckboxProps?.(record)?.disabled}
                         onChange={(e) => handleSelectRow(record, absIdx, e.target.checked)}
@@ -1342,13 +1824,19 @@ export function DataGrid<T = Record<string, unknown>>({
 
                   {resolvedColumns.map((col, colIdx) => {
                     const cellProps = col.onCell?.(record, absIdx) ?? {}
-                    const rawValue = getValue(record, col.dataIndex, col.key)
+                    const rawValue = getRecordValue(record, col.dataIndex, col.key)
 
                     // inline 모드: 편집 가능한 셀은 항상 에디터 노출
                     const isEditing =
                       editMode === 'inline'
                         ? (col.editable ?? false)
                         : editCell?.rowKey === rk && editCell.colKey === col.key
+
+                    const displayNr =
+                      !isEditing && col.render
+                        ? normalizeCellRenderResult(col.render(rawValue, record, absIdx))
+                        : null
+                    if (displayNr?.props?.colSpan === 0) return null
 
                     const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
                     const validateErr = validateErrorMap.get(`${String(rk)}::${col.key}`)
@@ -1378,21 +1866,38 @@ export function DataGrid<T = Record<string, unknown>>({
                         key={col.key}
                         data-row={absIdx}
                         data-col={colIdx}
+                        tabIndex={editMode === 'inline' && isActiveCell ? -1 : undefined}
+                        colSpan={displayNr?.props?.colSpan}
+                        rowSpan={displayNr?.props?.rowSpan}
                         className={`${tdClass} ${cellProps.className ?? ''}`.trim()}
                         style={{
                           ...cellProps.style,
+                          ...(colIdx === 0 && indentPx ? { paddingLeft: indentPx } : {}),
                           ...(col.fixed === 'left'
-                            ? ({ '--sticky-left': `${col._left ?? 0}px` } as React.CSSProperties)
+                            ? ({ '--sticky-left': `${col._left ?? 0}px` } as CSSProperties)
                             : {}),
                           ...(col.fixed === 'right'
-                            ? ({ '--sticky-right': `${col._right ?? 0}px` } as React.CSSProperties)
+                            ? ({ '--sticky-right': `${col._right ?? 0}px` } as CSSProperties)
                             : {}),
                         }}
                         onFocus={
-                          editMode === 'inline' && col.editable
+                          editMode === 'inline'
                             ? () => {
-                                setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
-                                setFocusedKey(rk)
+                                setActiveCellPos((prev) =>
+                                  prev?.rowAbsIdx === absIdx && prev?.colIdx === colIdx
+                                    ? prev
+                                    : { rowAbsIdx: absIdx, colIdx },
+                                )
+                                setFocusedKey((prev) => (prev === rk ? prev : rk))
+                                if (col.editable) {
+                                  setEditCell((prev) =>
+                                    prev?.rowKey === rk && prev?.colKey === col.key
+                                      ? prev
+                                      : { rowKey: rk, colKey: col.key },
+                                  )
+                                } else {
+                                  setEditCell(null)
+                                }
                               }
                             : undefined
                         }
@@ -1445,9 +1950,18 @@ export function DataGrid<T = Record<string, unknown>>({
                             />
                           )
                         ) : col.render ? (
-                          col.render(rawValue, record, absIdx)
+                          col.shouldCellUpdate ? (
+                            <GridCellInner
+                              col={col as ColumnType<Record<string, unknown>>}
+                              record={record as Record<string, unknown>}
+                              absIdx={absIdx}
+                              rawValue={rawValue}
+                            />
+                          ) : (
+                            displayNr?.children
+                          )
                         ) : (
-                          (rawValue as React.ReactNode)
+                          (rawValue as ReactNode)
                         )}
                         {/* 검증 오류 메시지 툴팁 */}
                         {validateErr?.message && (
@@ -1477,7 +1991,15 @@ export function DataGrid<T = Record<string, unknown>>({
                       </button>
                     </td>
                   )}
-                </tr>
+                </BodyRowTag>
+                  {hasExpandRender && isExpanded && rowExpandable && expandable?.expandedRowRender && (
+                    <tr className="datagrid__tr datagrid__tr--expanded" key={`${rk}-exp`}>
+                      <td className="datagrid__td datagrid__expand-cell" colSpan={tableBodyColSpan}>
+                        {expandable.expandedRowRender(record, absIdx, indentPx, isExpanded)}
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
               )
             })}
 
@@ -1487,8 +2009,42 @@ export function DataGrid<T = Record<string, unknown>>({
               </tr>
             )}
           </tbody>
-        </table>
+          {summary && (
+            <tfoot
+              className={[
+                'datagrid__tfoot',
+                summaryFixed === 'bottom' ? 'datagrid__tfoot--sticky-bottom' : '',
+                summaryFixed === 'top' ? 'datagrid__tfoot--sticky-top' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              {summary(pagedData.map((p) => p.record))}
+            </tfoot>
+          )}
+        </TableTag>
       </div>
+
+      {footer && (
+        <div className="datagrid__caption datagrid__caption--bottom">{footer(pagedData.map((p) => p.record))}</div>
+      )}
+
+      {openFilterColumn &&
+        (openFilterColumn.filters?.length || openFilterColumn.filterDropdown) &&
+        filterAnchorEl && (
+          <ColumnFilterDropdownPanel
+            column={openFilterColumn as ColumnType<Record<string, unknown>>}
+            selectedKeys={[...(mergedFilters[openFilterColumn.key] ?? [])]}
+            anchorEl={filterAnchorEl}
+            getPopupContainer={resolvePopupContainer}
+            onConfirm={(keys) => commitColumnFilter(openFilterColumn.key, keys)}
+            onClear={() => clearColumnFilterState(openFilterColumn)}
+            onClose={() => {
+              setOpenFilterKey(null)
+              setFilterAnchorEl(null)
+            }}
+          />
+        )}
 
       {!isPaginationDisabled && (
         <PaginationBar

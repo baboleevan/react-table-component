@@ -24,6 +24,7 @@ const MENU = [
       { path: '/components/focused-row', label: '포커스된 행 추적 (onFocusedRowChange)' },
       { path: '/components/transfer', label: '데이터 이전 (DataTransfer)' },
       { path: '/components/click-row-select', label: '행 클릭 선택 (clickRowToSelect)' },
+      { path: '/components/antd-table-features', label: 'Ant Design Table 호환 (필터·확장·합계 등)' },
     ],
   },
 ]

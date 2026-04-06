@@ -28,7 +28,9 @@ $grid-line-height: 1.5715 !default;
 $grid-cell-padding-v: 10px !default; // 기존 12px → 더 촘촘하게
 $grid-cell-padding-h: 14px !default; // 기존 16px
 
-$grid-scrollbar-width: 6px !default;
+// 세로 스크롤바 두께(폭) · 가로 스크롤바 두께(높이) — 각각 독립 설정 가능
+$grid-scrollbar-width: 9px !default;
+$grid-scrollbar-height: $grid-scrollbar-width !default;
 $grid-scrollbar-color: #c8cdd8 !default; // 기존 #d9d9d9 → 블루톤
 
 $grid-loading-overlay-bg: rgba(255, 255, 255, 0.7) !default;

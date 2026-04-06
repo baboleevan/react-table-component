@@ -43,11 +43,12 @@ export function useVirtualRows({ totalCount, rowHeight, overscan = 5 }: VirtualR
   )
 
   const visibleRange = useMemo<[number, number]>(() => {
+    /* eslint-disable react-hooks/refs -- 가시 높이는 스크롤 컨테이너 ref로만 측정 */
     const containerHeight = containerRef.current?.clientHeight ?? 600
     const start = Math.max(0, Math.floor(scrollTop / rowHeight) - overscan)
     const end = Math.min(totalCount - 1, Math.ceil((scrollTop + containerHeight) / rowHeight) + overscan)
+    /* eslint-enable react-hooks/refs */
     return [start, end]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollTop, totalCount, rowHeight, overscan])
 
   const [start, end] = visibleRange

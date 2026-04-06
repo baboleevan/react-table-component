@@ -94,15 +94,22 @@ export function ServerPaginationDemo() {
   }, [])
 
   useEffect(() => {
+    // 서버 데이터 동기화: 페이지/정렬 변경 시 fetch (데모용)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load 내부에서 setState
     load(page, pageSize, sortKey, sortOrder)
   }, [page, pageSize, sortKey, sortOrder, load])
 
   const handleChange = useCallback(
-    (pag: { current?: number; pageSize?: number }, sorter: { columnKey?: string; order?: string | null }) => {
+    (
+      pag: { current?: number; pageSize?: number },
+      _filters: unknown,
+      sorter: { columnKey?: string; order?: string | null } | Array<{ columnKey?: string; order?: string | null }>,
+    ) => {
       const newPage = pag.current ?? 1
       const newSize = pag.pageSize ?? pageSize
-      const newKey = sorter.columnKey ?? undefined
-      const rawOrd = sorter.order
+      const one = Array.isArray(sorter) ? sorter[0] : sorter
+      const newKey = one?.columnKey ?? undefined
+      const rawOrd = one?.order
       const newOrd = rawOrd === 'ascend' || rawOrd === 'descend' ? rawOrd : undefined
 
       setPage(newPage)
@@ -205,7 +212,7 @@ export function ServerPaginationDemo() {
                 setPageSize(ps)
               },
             }}
-            onChange={handleChange as unknown as Parameters<typeof DataGrid<Employee>>[0]['onChange']}
+            onChange={handleChange}
           />
         </div>
       </DemoBlock>

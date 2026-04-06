@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
 import { DataGrid } from '../DataGrid'
+import { getRecordValue } from '../DataGrid/tableUtils'
 import type { DataTransferProps } from './types'
 import './DataTransfer.scss'
 
@@ -48,8 +49,7 @@ export function DataTransfer<T = Record<string, unknown>>({
     const q = leftSearch.toLowerCase()
     return base.filter((r) =>
       columns.some((col) => {
-        const di = col.dataIndex ?? col.key
-        return String((r as Record<string, unknown>)[di] ?? '')
+        return String(getRecordValue(r, col.dataIndex, col.key) ?? '')
           .toLowerCase()
           .includes(q)
       }),
@@ -62,8 +62,7 @@ export function DataTransfer<T = Record<string, unknown>>({
     const q = rightSearch.toLowerCase()
     return base.filter((r) =>
       columns.some((col) => {
-        const di = col.dataIndex ?? col.key
-        return String((r as Record<string, unknown>)[di] ?? '')
+        return String(getRecordValue(r, col.dataIndex, col.key) ?? '')
           .toLowerCase()
           .includes(q)
       }),

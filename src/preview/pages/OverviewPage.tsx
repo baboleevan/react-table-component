@@ -49,6 +49,12 @@ const CARDS = [
     desc: 'SCSS 변수 및 CSS 커스텀 프로퍼티 오버라이드',
     tag: 'Styling',
   },
+  {
+    path: '/components/antd-table-features',
+    title: 'Ant Design Table 호환',
+    desc: '필터·확장·트리·합계·title/footer·responsive 등',
+    tag: 'AntD API',
+  },
 ]
 
 export function OverviewPage() {
