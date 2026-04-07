@@ -22,6 +22,8 @@ import { FocusedRowDemo } from './examples/FocusedRowDemo'
 import { TransferDemo } from './examples/TransferDemo'
 import { ClickRowSelectDemo } from './examples/ClickRowSelectDemo'
 import { AntdFeaturesDemo } from './examples/AntdFeaturesDemo'
+import { FlatTreeDemo } from './examples/FlatTreeDemo'
+import { StripedDemo } from './examples/StripedDemo'
 import './preview.scss'
 
 export function App() {
@@ -54,6 +56,8 @@ export function App() {
             <Route path="/components/transfer" element={<TransferDemo />} />
             <Route path="/components/click-row-select" element={<ClickRowSelectDemo />} />
             <Route path="/components/antd-table-features" element={<AntdFeaturesDemo />} />
+            <Route path="/components/flat-tree" element={<FlatTreeDemo />} />
+            <Route path="/components/striped" element={<StripedDemo />} />
           </Routes>
         </main>
       </div>

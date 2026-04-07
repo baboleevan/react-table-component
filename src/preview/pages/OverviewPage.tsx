@@ -55,6 +55,18 @@ const CARDS = [
     desc: '필터·확장·트리·합계·title/footer·responsive 등',
     tag: 'AntD API',
   },
+  {
+    path: '/components/flat-tree',
+    title: '플랫 트리 (depth)',
+    desc: '플랫 dataSource + depth 필드로 트리 UI·접기/펼치기',
+    tag: 'Tree',
+  },
+  {
+    path: '/components/striped',
+    title: '줄무늬 (striped)',
+    desc: 'striped prop으로 홀수 행 배경, CSS 변수로 색 조정',
+    tag: 'Style',
+  },
 ]
 
 export function OverviewPage() {

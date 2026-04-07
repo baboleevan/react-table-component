@@ -28,7 +28,13 @@ import type {
 import { useVirtualRows } from './useVirtualRows'
 import { useGridBreakpoint } from './useGridBreakpoint'
 import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorterMultiple } from './tableUtils'
-import { applyColumnFilters, applyMultiSort, flattenTreeRows, type FlatTreeRow } from './sortAndFilter'
+import {
+  applyColumnFilters,
+  applyMultiSort,
+  flattenTreeRows,
+  flattenFlatDepthTreeRows,
+  type FlatTreeRow,
+} from './sortAndFilter'
 import { ColumnFilterDropdownPanel } from './ColumnFilterDropdown'
 import './DataGrid.scss'
 
@@ -552,13 +558,30 @@ export function DataGrid<T = Record<string, unknown>>({
     return sortStates
   }, [leafColumns, sortStates])
 
+  const flatTreeOpts = expandable?.treeDataFromFlatList
   const childrenColumnName = expandable?.childrenColumnName
-  const isTreeMode = Boolean(childrenColumnName)
+  const isFlatDepthTree = Boolean(flatTreeOpts)
+  const isTreeMode = Boolean(childrenColumnName) || isFlatDepthTree
 
   const treeFlatRows = useMemo((): FlatTreeRow<T>[] | null => {
-    if (!isTreeMode || !childrenColumnName) return null
-    return flattenTreeRows(dataSource, childrenColumnName, expandedKeysSet, getRowKeyForRecord)
-  }, [dataSource, isTreeMode, childrenColumnName, expandedKeysSet, getRowKeyForRecord])
+    if (!isTreeMode) return null
+    if (isFlatDepthTree) {
+      const field = flatTreeOpts?.depthField ?? 'depth'
+      return flattenFlatDepthTreeRows(dataSource, field, expandedKeysSet, getRowKeyForRecord)
+    }
+    if (childrenColumnName) {
+      return flattenTreeRows(dataSource, childrenColumnName, expandedKeysSet, getRowKeyForRecord)
+    }
+    return null
+  }, [
+    dataSource,
+    isTreeMode,
+    isFlatDepthTree,
+    flatTreeOpts?.depthField,
+    childrenColumnName,
+    expandedKeysSet,
+    getRowKeyForRecord,
+  ])
 
   const filteredTreeRows = useMemo(() => {
     if (!treeFlatRows) return null
@@ -586,9 +609,19 @@ export function DataGrid<T = Record<string, unknown>>({
     return applyMultiSort(filteredFlatData ?? [], effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
   }, [treeFlatRows, filteredFlatData, effectiveSortStates, leafColumns])
 
-  const rowPacks = useMemo((): { record: T; depth: number; rowKey: string | number }[] => {
+  const rowPacks = useMemo((): {
+    record: T
+    depth: number
+    rowKey: string | number
+    hasTreeChildren?: boolean
+  }[] => {
     if (filteredTreeRows) {
-      return filteredTreeRows.map((r) => ({ record: r.record, depth: r.depth, rowKey: r.rowKey }))
+      return filteredTreeRows.map((r) => ({
+        record: r.record,
+        depth: r.depth,
+        rowKey: r.rowKey,
+        hasTreeChildren: r.hasTreeChildren,
+      }))
     }
     const list = sortedFlatData ?? []
     return list.map((record, i) => ({
@@ -607,7 +640,7 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 리사이즈 상태 ─────────────────────────────
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
-  const resizeRef = useRef<{ key: string; startX: number; startWidth: number } | null>(null)
+  const resizeRef = useRef<{ key: string; startX: number; startWidth: number; moved: boolean } | null>(null)
 
   // ── 편집된 셀 추적 (dirty): 원본 값을 저장하여 현재 값과 비교 ──
   const originalValuesRef = useRef<Map<string, unknown>>(new Map())
@@ -1251,19 +1284,35 @@ export function DataGrid<T = Record<string, unknown>>({
     (e: React.MouseEvent, col: ColumnType<T>) => {
       e.preventDefault()
       e.stopPropagation()
+      const thEl = (e.currentTarget as HTMLElement).closest('th')
       const startWidth = columnWidths[col.key] ?? (typeof col.width === 'number' ? col.width : 100)
-      resizeRef.current = { key: col.key, startX: e.clientX, startWidth }
+      resizeRef.current = { key: col.key, startX: e.clientX, startWidth, moved: false }
 
       const onMouseMove = (ev: MouseEvent) => {
         if (!resizeRef.current) return
         const { key, startX, startWidth: sw } = resizeRef.current
         const delta = ev.clientX - startX
+        if (Math.abs(delta) > 1) resizeRef.current.moved = true
         const colDef = leafColumns.find((c) => c.key === key)
         const min = colDef?.minWidth ?? 40
         const max = colDef?.maxWidth ?? Infinity
         setColumnWidths((prev) => ({ ...prev, [key]: Math.min(max, Math.max(min, sw + delta)) }))
       }
       const onMouseUp = () => {
+        const session = resizeRef.current
+        if (session?.moved && thEl) {
+          const t0 = performance.now()
+          const ac = new AbortController()
+          const killResizeGhostClick = (ev: MouseEvent) => {
+            if (thEl.contains(ev.target as Node) && performance.now() - t0 < 100) {
+              ev.preventDefault()
+              ev.stopPropagation()
+            }
+            ac.abort()
+          }
+          document.addEventListener('click', killResizeGhostClick, { capture: true, signal: ac.signal })
+          window.setTimeout(() => ac.abort(), 400)
+        }
         resizeRef.current = null
         document.removeEventListener('mousemove', onMouseMove)
         document.removeEventListener('mouseup', onMouseUp)
@@ -1662,7 +1711,9 @@ export function DataGrid<T = Record<string, unknown>>({
                       onClick={
                         isLeaf
                           ? (e) => {
-                              if ((e.target as HTMLElement).closest('.datagrid__filter-trigger')) return
+                              const el = e.target as HTMLElement
+                              if (el.closest('.datagrid__filter-trigger')) return
+                              if (el.closest('.datagrid__resize-handle')) return
                               handleSort(col, e)
                             }
                           : undefined
@@ -1692,7 +1743,11 @@ export function DataGrid<T = Record<string, unknown>>({
                         )}
                       </div>
                       {isLeaf && col.resizable !== false && (
-                        <span className="datagrid__resize-handle" onMouseDown={(e) => handleResizeStart(e, col)} />
+                        <span
+                          className="datagrid__resize-handle"
+                          onMouseDown={(e) => handleResizeStart(e, col)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
                       )}
                     </th>
                   )
@@ -1732,7 +1787,7 @@ export function DataGrid<T = Record<string, unknown>>({
             )}
 
             {visibleData.map((pack, relIdx) => {
-              const { record, depth, rowKey: rk } = pack
+              const { record, depth, rowKey: rk, hasTreeChildren } = pack
               const absIdx = visibleStartIndex + relIdx
               const isSelected = selectedKeys.has(rk)
               const isFocused = focusedKey === rk
@@ -1755,11 +1810,8 @@ export function DataGrid<T = Record<string, unknown>>({
 
               const rowExpandable = expandable?.rowExpandable?.(record) !== false
               const isExpanded = expandedKeysSet.has(String(rk))
-              const treeChildren =
-                isTreeMode && childrenColumnName
-                  ? ((record as Record<string, unknown>)[childrenColumnName] as unknown[] | undefined)
-                  : undefined
-              const showTreeToggle = Boolean(isTreeMode && treeChildren && treeChildren.length > 0)
+              const showTreeToggle = Boolean(isTreeMode && hasTreeChildren)
+              const showTreeLines = Boolean(expandable?.showTreeLines && isTreeMode)
 
               const onExpandClick = (e?: ReactMouseEvent) => {
                 e?.stopPropagation()
@@ -1803,7 +1855,7 @@ export function DataGrid<T = Record<string, unknown>>({
                             aria-expanded={isExpanded}
                             onClick={onExpandClick}
                           >
-                            {isExpanded ? '▼' : '▶'}
+                            {isExpanded ? '−' : '+'}
                           </button>
                         )
                       ) : null}
@@ -1855,11 +1907,58 @@ export function DataGrid<T = Record<string, unknown>>({
                       col.editable && !isEditing && editMode === 'click' ? 'editable-click' : '',
                       editMode === 'inline' && isEditing ? 'inline-editing' : '',
                       isDirty ? 'dirty' : '',
+                      showTreeLines && colIdx === 0 ? 'datagrid__td--tree-lines' : '',
                       // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
                       validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
                     ]
                       .filter(Boolean)
                       .join(' ')
+
+                    const treeIndentVar = `${expandable?.indentSize ?? 15}px`
+                    const cellInner = (
+                      <>
+                        {isEditing ? (
+                          col.renderEditor ? (
+                            col.renderEditor(
+                              rawValue,
+                              record,
+                              absIdx,
+                              (v) => handleEditCommit(record, rk, col.key, v),
+                              // inline 모드에서 onCancel은 에디터를 닫지 않음 (항상 노출)
+                              editMode === 'inline' ? () => {} : () => setEditCell(null),
+                            )
+                          ) : editMode === 'inline' ? (
+                            // inline 모드 표준 입력 — handleEditCommit을 통해 validator도 실행
+                            <InlineEditInput
+                              key={`${rk}-${col.key}`}
+                              initialValue={rawValue}
+                              originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
+                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
+                            />
+                          ) : (
+                            <EditCell
+                              ref={editCellRef}
+                              initialValue={rawValue}
+                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
+                              onCancel={() => setEditCell(null)}
+                            />
+                          )
+                        ) : col.render ? (
+                          col.shouldCellUpdate ? (
+                            <GridCellInner
+                              col={col as ColumnType<Record<string, unknown>>}
+                              record={record as Record<string, unknown>}
+                              absIdx={absIdx}
+                              rawValue={rawValue}
+                            />
+                          ) : (
+                            displayNr?.children
+                          )
+                        ) : (
+                          (rawValue as ReactNode)
+                        )}
+                      </>
+                    )
 
                     return (
                       <td
@@ -1872,7 +1971,7 @@ export function DataGrid<T = Record<string, unknown>>({
                         className={`${tdClass} ${cellProps.className ?? ''}`.trim()}
                         style={{
                           ...cellProps.style,
-                          ...(colIdx === 0 && indentPx ? { paddingLeft: indentPx } : {}),
+                          ...(colIdx === 0 && indentPx && !showTreeLines ? { paddingLeft: indentPx } : {}),
                           ...(col.fixed === 'left'
                             ? ({ '--sticky-left': `${col._left ?? 0}px` } as CSSProperties)
                             : {}),
@@ -1923,45 +2022,26 @@ export function DataGrid<T = Record<string, unknown>>({
                             : undefined
                         }
                       >
-                        {isEditing ? (
-                          col.renderEditor ? (
-                            col.renderEditor(
-                              rawValue,
-                              record,
-                              absIdx,
-                              (v) => handleEditCommit(record, rk, col.key, v),
-                              // inline 모드에서 onCancel은 에디터를 닫지 않음 (항상 노출)
-                              editMode === 'inline' ? () => {} : () => setEditCell(null),
-                            )
-                          ) : editMode === 'inline' ? (
-                            // inline 모드 표준 입력 — handleEditCommit을 통해 validator도 실행
-                            <InlineEditInput
-                              key={`${rk}-${col.key}`}
-                              initialValue={rawValue}
-                              originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
-                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
-                            />
-                          ) : (
-                            <EditCell
-                              ref={editCellRef}
-                              initialValue={rawValue}
-                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
-                              onCancel={() => setEditCell(null)}
-                            />
-                          )
-                        ) : col.render ? (
-                          col.shouldCellUpdate ? (
-                            <GridCellInner
-                              col={col as ColumnType<Record<string, unknown>>}
-                              record={record as Record<string, unknown>}
-                              absIdx={absIdx}
-                              rawValue={rawValue}
-                            />
-                          ) : (
-                            displayNr?.children
-                          )
+                        {showTreeLines && colIdx === 0 ? (
+                          <div
+                            className="datagrid__tree-cell-wrap"
+                            style={{ ['--grid-tree-indent' as string]: treeIndentVar } as CSSProperties}
+                          >
+                            {Array.from({ length: depth }, (_, lv) => (
+                              <span
+                                key={lv}
+                                className={
+                                  lv === depth - 1
+                                    ? 'datagrid__tree-line datagrid__tree-line--end'
+                                    : 'datagrid__tree-line'
+                                }
+                                aria-hidden
+                              />
+                            ))}
+                            <div className="datagrid__tree-cell-main">{cellInner}</div>
+                          </div>
                         ) : (
-                          (rawValue as ReactNode)
+                          cellInner
                         )}
                         {/* 검증 오류 메시지 툴팁 */}
                         {validateErr?.message && (

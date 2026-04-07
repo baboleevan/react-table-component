@@ -54,25 +54,91 @@ export function applyMultiSort<T>(
 
 export interface FlatTreeRow<T> {
   record: T
+  /** 들여쓰기 단계 (0 = 최상위) */
   depth: number
   rowKey: string | number
+  /** 트리 토글(▶/▼) 표시 여부 */
+  hasTreeChildren?: boolean
 }
 
 export function flattenTreeRows<T>(
   list: T[],
   childrenColumnName: string,
-  expandedKeys: Set<string | number>,
+  expandedKeys: ReadonlySet<string>,
   getRowKey: (record: T) => string | number,
 ): FlatTreeRow<T>[] {
+  const keyStr = (k: string | number) => String(k)
   const out: FlatTreeRow<T>[] = []
   const walk = (rows: T[], depth: number) => {
     for (const row of rows) {
       const k = getRowKey(row)
-      out.push({ record: row, depth, rowKey: k })
       const children = (row as Record<string, unknown>)[childrenColumnName] as T[] | undefined
-      if (children?.length && expandedKeys.has(k)) walk(children, depth + 1)
+      const hasKids = Boolean(children?.length)
+      out.push({ record: row, depth, rowKey: k, hasTreeChildren: hasKids })
+      if (children?.length && expandedKeys.has(keyStr(k))) walk(children, depth + 1)
     }
   }
   walk(list, 0)
+  return out
+}
+
+/**
+ * `depth` 필드만 있는 **전위 순회(부모→자식) 플랫 배열**을 트리로 해석합니다.
+ * 다음 행의 depth가 현재보다 정확히 1 크면 직계 자식으로 간주합니다.
+ */
+export function flattenFlatDepthTreeRows<T>(
+  list: T[],
+  depthField: string,
+  expandedKeys: ReadonlySet<string>,
+  getRowKey: (record: T) => string | number,
+): FlatTreeRow<T>[] {
+  const keyStr = (k: string | number) => String(k)
+  const depthOf = (r: T) => {
+    const v = (r as Record<string, unknown>)[depthField]
+    const n = Number(v)
+    return Number.isFinite(n) ? n : 0
+  }
+
+  const n = list.length
+  if (n === 0) return []
+
+  const parents: (number | null)[] = new Array(n).fill(null)
+  const stack: number[] = []
+  for (let i = 0; i < n; i++) {
+    const d = depthOf(list[i])
+    while (stack.length > 0 && depthOf(list[stack[stack.length - 1]!]!) >= d) {
+      stack.pop()
+    }
+    parents[i] = stack.length > 0 ? stack[stack.length - 1]! : null
+    stack.push(i)
+  }
+
+  const hasDirectChild = (i: number) =>
+    i + 1 < n && depthOf(list[i + 1]) === depthOf(list[i]) + 1
+
+  const minDepth = Math.min(...list.map(depthOf))
+  const out: FlatTreeRow<T>[] = []
+
+  for (let i = 0; i < n; i++) {
+    let p = parents[i]
+    let hidden = false
+    while (p !== null) {
+      if (!expandedKeys.has(keyStr(getRowKey(list[p])))) {
+        hidden = true
+        break
+      }
+      p = parents[p]
+    }
+    if (hidden) continue
+
+    const record = list[i]
+    out.push({
+      record,
+      depth: Math.max(0, depthOf(record) - minDepth),
+      rowKey: getRowKey(record),
+      hasTreeChildren: hasDirectChild(i),
+    })
+  }
+
   return out
 }

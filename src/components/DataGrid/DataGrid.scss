@@ -7,6 +7,7 @@
 //   .datagrid {
 //     --grid-row-focus-bg: #fff7e6;
 //     --grid-header-bg: #e6fffb;
+//     --grid-tree-line-color: #e8e8e8;      // 트리 가이드선 (얇은 실선)
 //     --grid-scrollbar-width: 10px;   // 세로 스크롤바 폭
 //     --grid-scrollbar-height: 8px;   // 가로 스크롤바 높이
 //   }
@@ -32,6 +33,8 @@
   --grid-scrollbar-width: #{$grid-scrollbar-width};
   --grid-scrollbar-height: #{$grid-scrollbar-height};
   --grid-scrollbar-color: #{$grid-scrollbar-color};
+  /** 트리 가이드선 — 테이블 격자와 맞는 아주 연한 회색 */
+  --grid-tree-line-color: #e8e8e8;
 
   position: relative;
   display: flex;
@@ -41,6 +44,8 @@
   font-size: var(--grid-font-size);
   background: var(--grid-bg);
   overflow: hidden;
+  border: 1px solid var(--grid-border-color);
+  border-radius: 8px;
 
   // ── 크기 변형 ──────────────────────────
   &.datagrid--small {
@@ -67,7 +72,7 @@
 
     &::-webkit-scrollbar-thumb {
       background: var(--grid-scrollbar-color);
-      border-radius: 3px;
+      border-radius: 100px;
     }
 
     &::-webkit-scrollbar-track {
@@ -99,6 +104,14 @@
     background: var(--grid-header-bg);
   }
 
+  // 세로 격자: th:last-child { border-right: none } 은 rowspan 이 있는 2행째 thead 에서
+  // 해당 tr 의 마지막 th 가 상위 행을 spanning 하지 않는 leaf 가 되어,
+  // 윗줄 그룹 헤더(예: 평가)가 :last-child 로 오인되어 우측 구분선이 사라질 수 있음.
+  // 인접 셀에 border-left 를 주어 rowspan/다중 행에서도 세로선이 안정적으로 유지됨.
+  &__thead tr .datagrid__th + .datagrid__th {
+    border-left: 1px solid var(--grid-border-color);
+  }
+
   &__th {
     // 각 th 셀도 sticky — thead 와 이중 적용으로 모든 브라우저에서 안정적으로 body 위에 렌더
     position: sticky;
@@ -108,11 +121,15 @@
     background: var(--grid-header-bg);
     color: var(--grid-header-color);
     font-weight: #{$grid-header-font-weight};
-    text-align: left;
+    text-align: center;
+    vertical-align: middle;
     white-space: nowrap;
     border-bottom: 1px solid var(--grid-border-color);
     user-select: none;
 
+    &.align-left {
+      text-align: left;
+    }
     &.align-center {
       text-align: center;
     }
@@ -124,7 +141,7 @@
       cursor: pointer;
 
       &:hover {
-        background: #e4e7f2;
+        background: #f0f0f0;
       }
     }
 
@@ -152,12 +169,6 @@
       text-align: center;
       background: var(--grid-header-bg);
       border-bottom: 1px solid var(--grid-border-color);
-      // 그룹 간 구분선 — 형제 그룹 헤더 사이 세로선
-      border-right: 1px solid #d0d4e8;
-
-      &:last-child {
-        border-right: none;
-      }
     }
 
     // 리사이즈 핸들 부모
@@ -206,6 +217,10 @@
 
   // ── 바디 ──────────────────────────────────
   &__tbody {
+  }
+
+  &__tbody tr .datagrid__td + .datagrid__td {
+    border-left: 1px solid var(--grid-border-color);
   }
 
   &__tr {
@@ -277,6 +292,7 @@
     padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
     color: var(--grid-cell-color);
     background: var(--grid-cell-bg);
+    vertical-align: middle;
     border-bottom: 1px solid var(--grid-border-color);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -300,7 +316,7 @@
     &.fixed-right {
       position: sticky;
       z-index: 1;
-      background: var(--grid-bg);
+      background: var(--grid-cell-bg);
     }
 
     &.fixed-left {
@@ -369,20 +385,6 @@
       &:hover {
         outline: 1px dashed var(--grid-edit-border-color);
         outline-offset: -1px;
-      }
-    }
-  }
-
-  // ── 보더 변형 ───────────────────────
-  &.bordered {
-    border: 1px solid var(--grid-border-color);
-
-    .datagrid__th,
-    .datagrid__td {
-      border-right: 1px solid var(--grid-border-color);
-
-      &:last-child {
-        border-right: none;
       }
     }
   }
@@ -576,7 +578,7 @@
       -webkit-appearance: none;
       width: 16px;
       height: 16px;
-      border: 2px solid #c8cdd8;
+      border: 2px solid #d9d9d9;
       background: #fff;
       cursor: pointer;
       position: relative;
@@ -763,13 +765,22 @@
   &__th-inner {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     flex-wrap: wrap;
     width: 100%;
   }
 
+  &__th.align-left .datagrid__th-inner {
+    justify-content: flex-start;
+  }
+
+  &__th.align-right .datagrid__th-inner {
+    justify-content: flex-end;
+  }
+
   &__th-title {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
   }
 
@@ -797,17 +808,82 @@
   }
 
   &__expand-btn {
-    border: none;
-    background: transparent;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid var(--grid-border-color);
+    border-radius: 2px;
+    background: #fff;
     cursor: pointer;
-    padding: 2px 6px;
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: 500;
     line-height: 1;
-    color: var(--grid-cell-color);
+    color: rgba(0, 0, 0, 0.45);
+    transition: border-color 0.15s ease, color 0.15s ease;
 
     &:hover {
+      border-color: #1677ff;
       color: #1677ff;
     }
+  }
+
+  &__td--tree-lines {
+    overflow: visible;
+  }
+
+  &__tree-cell-wrap {
+    display: flex;
+    align-items: stretch;
+    min-width: 0;
+    gap: 0;
+  }
+
+  // 트리 가이드: 동일 톤 1px 실선만 (세로 + 행 중앙에서 본문으로 가로)
+  &__tree-line {
+    position: relative;
+    flex: 0 0 var(--grid-tree-indent, 16px);
+    align-self: stretch;
+    box-sizing: border-box;
+    pointer-events: none;
+
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 50%;
+      width: 1px;
+      margin-left: -0.5px;
+      background: var(--grid-tree-line-color);
+    }
+  }
+
+  &__tree-line--end {
+    &::before {
+      bottom: 50%;
+    }
+
+    &::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      right: 0;
+      top: 50%;
+      height: 1px;
+      margin-top: -0.5px;
+      background: var(--grid-tree-line-color);
+    }
+  }
+
+  &__tree-cell-main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    padding-left: 6px;
   }
 
   &__tr--expanded .datagrid__expand-cell {
@@ -839,10 +915,18 @@
     background: var(--grid-header-bg);
   }
 
+  &__tfoot .datagrid__summary-td + .datagrid__summary-td,
+  &__tfoot .datagrid__summary-th + .datagrid__summary-th,
+  &__tfoot .datagrid__summary-th + .datagrid__summary-td,
+  &__tfoot .datagrid__summary-td + .datagrid__summary-th {
+    border-left: 1px solid var(--grid-border-color);
+  }
+
   &__summary-td,
   &__summary-th {
     padding: var(--grid-cell-padding-v) var(--grid-cell-padding-h);
     border-top: 1px solid var(--grid-border-color);
+    vertical-align: middle;
   }
 }
 

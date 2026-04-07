@@ -25,6 +25,8 @@ const MENU = [
       { path: '/components/transfer', label: '데이터 이전 (DataTransfer)' },
       { path: '/components/click-row-select', label: '행 클릭 선택 (clickRowToSelect)' },
       { path: '/components/antd-table-features', label: 'Ant Design Table 호환 (필터·확장·합계 등)' },
+      { path: '/components/flat-tree', label: '플랫 트리 (depth + 폴딩)' },
+      { path: '/components/striped', label: '줄무늬 (striped)' },
     ],
   },
 ]

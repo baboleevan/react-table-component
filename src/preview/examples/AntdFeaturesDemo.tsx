@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DataGrid, TableSummary, type ColumnType, type TableFilters } from '@/components/DataGrid'
+import { DemoBlock } from '../components/DemoBlock'
 
 interface Row {
   id: string
@@ -50,6 +51,50 @@ const treeData: TreeRow[] = [
   },
   { id: 'p2', title: '프로젝트 B (자식 없음)' },
 ]
+
+const CODE_FILTER = `// filters, defaultFilteredValue, defaultSortOrder, title/footer, onChange(filters), summary
+<DataGrid<Row>
+  columns={filterColumns}
+  title={() => <strong>상단 제목</strong>}
+  footer={(rows) => <span>현재 {rows.length}행</span>}
+  onChange={(_, filters) => setFilterLog(JSON.stringify(filters))}
+  summary={(pageData) => (
+    <TableSummary.Row>
+      <TableSummary.Cell colSpan={3}>합계</TableSummary.Cell>
+      <TableSummary.Cell index={4} align="right">{pageData.reduce(...)}</TableSummary.Cell>
+    </TableSummary.Row>
+  )}
+  summaryFixed="bottom"
+/>`
+
+const CODE_EXPAND = `expandable={{
+  expandedRowKeys: expandKeys,
+  onExpandedRowsChange: setExpandKeys,
+  expandedRowRender: (record) => (
+    <div>확장: {record.name}</div>
+  ),
+}}`
+
+const CODE_TREE = `expandable={{
+  defaultExpandedRowKeys: ['p1'],
+  childrenColumnName: 'children',
+  indentSize: 20,
+}}`
+
+const CODE_HIDDEN = `// hidden: true → 컬럼 미표시
+// responsive: ['xl','xxl'] → 해당 브레이크포인트에서만 표시
+{ key: 'wideOnly', title: 'xl 이상만', responsive: ['xl', 'xxl'] }`
+
+const CODE_COLSPAN = `render: (v, _r, rowIndex) =>
+  rowIndex === 0
+    ? { children: <em>병합</em>, props: { colSpan: 2 } }
+    : { children: v as string }`
+
+const CODE_TABLE_LAYOUT = `<DataGrid
+  tableLayout="auto"
+  showHeader={false}
+  columns={[...]}
+/>`
 
 export function AntdFeaturesDemo() {
   const [filterLog, setFilterLog] = useState<string>('—')
@@ -137,13 +182,14 @@ export function AntdFeaturesDemo() {
         등 TODO에 정리된 API를 한 화면에서 확인합니다.
       </p>
 
-      <section className="demo-block" style={{ marginBottom: 28 }}>
-        <h2 className="demo-block__title">필터 + defaultSortOrder + onChange(filters)</h2>
-        <p className="demo-block__desc">
-          역할 컬럼은 <code>defaultFilteredValue: [&apos;dev&apos;]</code> 로 초기 필터가 걸려 있습니다. 헤더 ▾로
-          필터를 바꾸면 로그가 갱신됩니다.
-        </p>
-        <div className="demo-block__body" style={{ height: 360 }}>
+      <DemoBlock
+        title="필터 + defaultSortOrder + onChange(filters)"
+        description={
+          "역할 컬럼은 defaultFilteredValue: ['dev'] 로 초기 필터가 걸려 있습니다. 헤더 ▾로 필터를 바꾸면 로그가 갱신됩니다."
+        }
+        code={CODE_FILTER}
+      >
+        <div style={{ height: 360 }}>
           <DataGrid<Row>
             rowKey="id"
             dataSource={baseRows}
@@ -179,11 +225,10 @@ export function AntdFeaturesDemo() {
         >
           filters: {filterLog}
         </pre>
-      </section>
+      </DemoBlock>
 
-      <section className="demo-block" style={{ marginBottom: 28 }}>
-        <h2 className="demo-block__title">행 확장 (expandedRowRender)</h2>
-        <div className="demo-block__body" style={{ height: 320 }}>
+      <DemoBlock title="행 확장 (expandedRowRender)" code={CODE_EXPAND}>
+        <div style={{ height: 320 }}>
           <DataGrid<Row>
             rowKey="id"
             dataSource={baseRows}
@@ -203,17 +248,14 @@ export function AntdFeaturesDemo() {
             }}
           />
         </div>
-      </section>
+      </DemoBlock>
 
-      <section className="demo-block" style={{ marginBottom: 28 }}>
-        <h2 className="demo-block__title">트리 (childrenColumnName)</h2>
-        <div className="demo-block__body" style={{ height: 280 }}>
+      <DemoBlock title="트리 (childrenColumnName)" code={CODE_TREE}>
+        <div style={{ height: 280 }}>
           <DataGrid<TreeRow>
             rowKey="id"
             dataSource={treeData}
-            columns={[
-              { key: 'title', title: '이름', dataIndex: 'title', width: 280 },
-            ]}
+            columns={[{ key: 'title', title: '이름', dataIndex: 'title', width: 280 }]}
             expandable={{
               defaultExpandedRowKeys: ['p1'],
               childrenColumnName: 'children',
@@ -221,14 +263,14 @@ export function AntdFeaturesDemo() {
             }}
           />
         </div>
-      </section>
+      </DemoBlock>
 
-      <section className="demo-block" style={{ marginBottom: 28 }}>
-        <h2 className="demo-block__title">hidden / responsive</h2>
-        <p className="demo-block__desc">
-          브라우저 너비를 줄이면 &quot;xl 이상만&quot; 컬럼이 사라집니다. 숨김 컬럼은 DOM에 나오지 않습니다.
-        </p>
-        <div className="demo-block__body" style={{ height: 260 }}>
+      <DemoBlock
+        title="hidden / responsive"
+        description='브라우저 너비를 줄이면 "xl 이상만" 컬럼이 사라집니다. 숨김 컬럼은 DOM에 나오지 않습니다.'
+        code={CODE_HIDDEN}
+      >
+        <div style={{ height: 260 }}>
           <DataGrid<Row>
             rowKey="id"
             dataSource={baseRows}
@@ -236,11 +278,13 @@ export function AntdFeaturesDemo() {
             scroll={{ x: 700 }}
           />
         </div>
-      </section>
+      </DemoBlock>
 
-      <section className="demo-block" style={{ marginBottom: 28 }}>
-        <h2 className="demo-block__title">render → `&#123; children, props: &#123; colSpan &#125; &#125;`</h2>
-        <div className="demo-block__body" style={{ height: 220 }}>
+      <DemoBlock
+        title="render → { children, props: { colSpan } }"
+        code={CODE_COLSPAN}
+      >
+        <div style={{ height: 220 }}>
           <DataGrid<{ id: string; a: string; b: string }>
             rowKey="id"
             dataSource={[
@@ -269,11 +313,10 @@ export function AntdFeaturesDemo() {
             ]}
           />
         </div>
-      </section>
+      </DemoBlock>
 
-      <section className="demo-block">
-        <h2 className="demo-block__title">tableLayout + showHeader</h2>
-        <div className="demo-block__body" style={{ height: 200 }}>
+      <DemoBlock title="tableLayout + showHeader" code={CODE_TABLE_LAYOUT}>
+        <div style={{ height: 200 }}>
           <DataGrid<Row>
             rowKey="id"
             dataSource={baseRows.slice(0, 2)}
@@ -285,7 +328,7 @@ export function AntdFeaturesDemo() {
             ]}
           />
         </div>
-      </section>
+      </DemoBlock>
     </div>
   )
 }

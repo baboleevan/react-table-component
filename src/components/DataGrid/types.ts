@@ -341,8 +341,18 @@ export interface ExpandableConfig<T = Record<string, unknown>> {
   expandRowByClick?: boolean
   /** 트리 들여쓰기 (px) */
   indentSize?: number
-  /** 트리 자식 필드명 */
+  /** 트리 자식 필드명 — 중첩 `children` 배열 기반 트리 */
   childrenColumnName?: string
+  /**
+   * 플랫 `dataSource` + `depth` 필드로 트리 표현 (전위 순회: 부모 다음에 자식 행이 옴).
+   * 지정 시 `childrenColumnName` 없이도 트리 모드가 됩니다.
+   */
+  treeDataFromFlatList?: {
+    /** 깊이 필드명 (기본 `depth`). 1=루트, 2=자식… 권장 */
+    depthField?: string
+  }
+  /** true면 첫 데이터 컬럼에 depth 단계만큼 세로 점선(트리 가이드)을 그립니다. */
+  showTreeLines?: boolean
 }
 
 export interface TableComponents {
@@ -387,7 +397,10 @@ export interface DataGridProps<T = Record<string, unknown>> {
   scroll?: ScrollConfig
   /** 셀 테두리 표시 */
   bordered?: boolean
-  /** 줄무늬 행 */
+  /**
+   * true이면 홀수 인덱스 행(0-based: 1,3,5…)에 `--grid-row-stripe-bg` 배경을 적용합니다.
+   * 색은 `.datagrid`에 CSS 변수로 덮어쓸 수 있습니다.
+   */
   striped?: boolean
   /** 테이블 크기 */
   size?: 'small' | 'middle' | 'large'
