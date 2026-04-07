@@ -825,6 +825,11 @@ export function DataGrid<T = Record<string, unknown>>({
     [resolvedColumns, setValidateErrorsSync],
   )
 
+  const isCellEditable = useCallback((col: ColumnType<T>, record: T, rowAbsIdx: number) => {
+    if (!col.editable) return false
+    return col.editableWhen ? col.editableWhen(record, rowAbsIdx) : true
+  }, [])
+
   // ── 활성 셀 이동 ────────────────────────────
   const moveActiveCell = useCallback(
     (rowAbsIdx: number, colIdx: number) => {
@@ -920,8 +925,10 @@ export function DataGrid<T = Record<string, unknown>>({
       onFocusedRowChange?.(nextRecord, nextRow)
 
       if (direction === 'right' || direction === 'left') {
-        setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
-      } else if (nextCol_.editable) {
+        setEditCell(
+          isCellEditable(nextCol_, nextRecord, nextRow) ? { rowKey: nextRowKey, colKey: nextCol_.key } : null,
+        )
+      } else if (isCellEditable(nextCol_, nextRecord, nextRow)) {
         setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
       } else {
         setEditCell(null)
@@ -939,6 +946,7 @@ export function DataGrid<T = Record<string, unknown>>({
       runValidator,
       onFocusedRowChange,
       containerRef,
+      isCellEditable,
     ],
   )
 
@@ -1049,9 +1057,11 @@ export function DataGrid<T = Record<string, unknown>>({
           // (행 이동은 방향키로만 수행)
           e.preventDefault()
           const col = resolvedColumns[activeCellPos.colIdx]
-          if (col?.editable) {
+          if (col) {
             const pk = pagedData[activeCellPos.rowAbsIdx]
-            if (pk) setEditCell({ rowKey: pk.rowKey, colKey: col.key })
+            if (pk && isCellEditable(col, pk.record, activeCellPos.rowAbsIdx)) {
+              setEditCell({ rowKey: pk.rowKey, colKey: col.key })
+            }
           }
           break
         }
@@ -1072,6 +1082,7 @@ export function DataGrid<T = Record<string, unknown>>({
       onCellEdit,
       runValidator,
       containerRef,
+      isCellEditable,
     ],
   )
 
@@ -1253,13 +1264,20 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 셀 편집 핸들러 ────────────────────────────
   const handleCellActivate = useCallback(
-    (rowK: string | number, colKey: string, col: ColumnType<T>, rowAbsIdx: number, colIdx: number) => {
-      if (!col.editable) return
+    (
+      rowK: string | number,
+      colKey: string,
+      col: ColumnType<T>,
+      record: T,
+      rowAbsIdx: number,
+      colIdx: number,
+    ) => {
+      if (!isCellEditable(col, record, rowAbsIdx)) return
       setEditCell({ rowKey: rowK, colKey })
       setActiveCellPos({ rowAbsIdx, colIdx })
       setFocusedKey(rowK)
     },
-    [],
+    [isCellEditable],
   )
 
   const handleEditCommit = useCallback(
@@ -1878,11 +1896,10 @@ export function DataGrid<T = Record<string, unknown>>({
                     const cellProps = col.onCell?.(record, absIdx) ?? {}
                     const rawValue = getRecordValue(record, col.dataIndex, col.key)
 
+                    const editableForRow = isCellEditable(col, record, absIdx)
                     // inline 모드: 편집 가능한 셀은 항상 에디터 노출
                     const isEditing =
-                      editMode === 'inline'
-                        ? (col.editable ?? false)
-                        : editCell?.rowKey === rk && editCell.colKey === col.key
+                      editMode === 'inline' ? editableForRow : editCell?.rowKey === rk && editCell.colKey === col.key
 
                     const displayNr =
                       !isEditing && col.render
@@ -1902,9 +1919,9 @@ export function DataGrid<T = Record<string, unknown>>({
                       col.ellipsis ? 'ellipsis' : '',
                       col.fixed ? `fixed-${col.fixed}` : '',
                       isEditing ? 'editing' : '',
-                      col.editable && !isEditing ? 'editable' : '',
+                      editableForRow && !isEditing ? 'editable' : '',
                       isActiveCell && !isEditing ? 'active-cell' : '',
-                      col.editable && !isEditing && editMode === 'click' ? 'editable-click' : '',
+                      editableForRow && !isEditing && editMode === 'click' ? 'editable-click' : '',
                       editMode === 'inline' && isEditing ? 'inline-editing' : '',
                       isDirty ? 'dirty' : '',
                       showTreeLines && colIdx === 0 ? 'datagrid__td--tree-lines' : '',
@@ -1988,7 +2005,7 @@ export function DataGrid<T = Record<string, unknown>>({
                                     : { rowAbsIdx: absIdx, colIdx },
                                 )
                                 setFocusedKey((prev) => (prev === rk ? prev : rk))
-                                if (col.editable) {
+                                if (editableForRow) {
                                   setEditCell((prev) =>
                                     prev?.rowKey === rk && prev?.colKey === col.key
                                       ? prev
@@ -2007,7 +2024,7 @@ export function DataGrid<T = Record<string, unknown>>({
                                 setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
                                 setFocusedKey(rk)
                                 onFocusedRowChange?.(record, absIdx)
-                                if (col.editable) setEditCell({ rowKey: rk, colKey: col.key })
+                                if (editableForRow) setEditCell({ rowKey: rk, colKey: col.key })
                               }
                             : editMode !== 'inline'
                               ? () => {
@@ -2018,7 +2035,7 @@ export function DataGrid<T = Record<string, unknown>>({
                         }
                         onDoubleClick={
                           editMode === 'dblclick'
-                            ? () => handleCellActivate(rk, col.key, col, absIdx, colIdx)
+                            ? () => handleCellActivate(rk, col.key, col, record, absIdx, colIdx)
                             : undefined
                         }
                       >

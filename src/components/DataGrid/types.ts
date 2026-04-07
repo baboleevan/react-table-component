@@ -171,6 +171,11 @@ export interface ColumnType<T = Record<string, unknown>> {
   /** 편집 가능한 컬럼 */
   editable?: boolean
   /**
+   * 행 단위 편집 가능 조건.
+   * `editable: true`인 컬럼에서만 평가되며, false를 반환하면 해당 행 셀은 읽기 전용으로 렌더됩니다.
+   */
+  editableWhen?: (record: T, rowIndex: number) => boolean
+  /**
    * 커스텀 에디터 렌더러.
    * 기본 텍스트 입력 대신 임의의 입력 컴포넌트
    * (Select, Checkbox, Radio, DatePicker 등)를 렌더링할 때 사용합니다.
