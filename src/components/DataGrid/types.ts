@@ -388,7 +388,10 @@ export interface DataGridProps<T = Record<string, unknown>> {
   dataSource?: T[]
   /** 컬럼 정의 배열 */
   columns?: ColumnType<T>[]
-  /** 행 키 필드명 또는 getter 함수 */
+  /**
+   * 행 키 필드명 또는 getter 함수.
+   * 미지정 시 내부에서 `id`를 우선 사용하고, 없으면 자동 생성 키로 fallback 합니다.
+   */
   rowKey?: string | ((record: T) => string | number)
   /** 로딩 상태 */
   loading?: boolean

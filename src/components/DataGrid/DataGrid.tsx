@@ -42,9 +42,17 @@ import './DataGrid.scss'
 // 헬퍼 함수
 // ──────────────────────────────────────────────
 function getRowKey<T>(record: T, rowKey: DataGridProps<T>['rowKey'], index: number): string | number {
-  if (typeof rowKey === 'function') return rowKey(record)
-  if (typeof rowKey === 'string') return (record as Record<string, unknown>)[rowKey] as string | number
-  return index
+  if (typeof rowKey === 'function') {
+    const k = rowKey(record)
+    if (k !== undefined && k !== null && String(k) !== '') return k
+  }
+  if (typeof rowKey === 'string') {
+    const k = (record as Record<string, unknown>)[rowKey] as string | number | undefined
+    if (k !== undefined && k !== null && String(k) !== '') return k
+  }
+  const fallbackId = (record as Record<string, unknown>)['id'] as string | number | undefined
+  if (fallbackId !== undefined && fallbackId !== null && String(fallbackId) !== '') return fallbackId
+  return `__dg_auto_${index}`
 }
 
 function resolveFixedOffsets<T>(columns: ColumnType<T>[]): InternalColumnType<T>[] {
@@ -440,7 +448,7 @@ const PaginationBar = memo(function PaginationBar({
 export function DataGrid<T = Record<string, unknown>>({
   dataSource = [],
   columns = [],
-  rowKey = 'id',
+  rowKey,
   loading = false,
   pagination,
   rowSelection,
@@ -500,12 +508,37 @@ export function DataGrid<T = Record<string, unknown>>({
   const leafColumns = useMemo(() => getLeafColumns(effectiveColumns), [effectiveColumns])
   const resolvedColumns = useMemo(() => resolveFixedOffsets(leafColumns), [leafColumns])
 
+  // 트리/확장처럼 index를 알기 어려운 구간에서 사용하는 내부 자동 키
+  const internalObjectKeyRef = useRef(new WeakMap<object, string>())
+  const internalObjectKeySeqRef = useRef(0)
+  const getInternalObjectKey = useCallback((record: T) => {
+    if (typeof record === 'object' && record !== null) {
+      const map = internalObjectKeyRef.current
+      const existing = map.get(record as object)
+      if (existing) return existing
+      const next = `__dg_obj_${internalObjectKeySeqRef.current++}`
+      map.set(record as object, next)
+      return next
+    }
+    // 객체가 아닌 타입은 값 기반으로라도 일관된 문자열 키를 부여
+    return `__dg_prim_${String(record)}`
+  }, [])
+
   const getRowKeyForRecord = useCallback(
     (record: T) => {
-      if (typeof rowKey === 'function') return rowKey(record)
-      return (record as Record<string, unknown>)[rowKey as string] as string | number
+      if (typeof rowKey === 'function') {
+        const k = rowKey(record)
+        if (k !== undefined && k !== null && String(k) !== '') return k
+      }
+      if (typeof rowKey === 'string') {
+        const k = (record as Record<string, unknown>)[rowKey] as string | number | undefined
+        if (k !== undefined && k !== null && String(k) !== '') return k
+      }
+      const fallbackId = (record as Record<string, unknown>)['id'] as string | number | undefined
+      if (fallbackId !== undefined && fallbackId !== null && String(fallbackId) !== '') return fallbackId
+      return getInternalObjectKey(record)
     },
-    [rowKey],
+    [rowKey, getInternalObjectKey],
   )
 
   const [internalFilters, setInternalFilters] = useState<TableFilters>(() => {
