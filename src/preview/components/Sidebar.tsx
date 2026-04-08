@@ -31,14 +31,20 @@ const MENU = [
   },
 ]
 
-export function Sidebar() {
+type SidebarProps = {
+  isOpen?: boolean
+  onClose?: () => void
+}
+
+export function Sidebar({ isOpen = false, onClose }: SidebarProps) {
   const navigate = useNavigate()
   return (
-    <nav className="preview-sidebar">
+    <nav className={`preview-sidebar${isOpen ? ' is-open' : ''}`}>
       <div
         className="preview-sidebar__logo"
         onClick={() => {
           navigate('/')
+          onClose?.()
         }}
       >
         ⚡ DataGrid
@@ -51,6 +57,7 @@ export function Sidebar() {
               key={path}
               to={path}
               className={({ isActive }) => `preview-sidebar__link${isActive ? ' active' : ''}`}
+              onClick={() => onClose?.()}
             >
               {label}
             </NavLink>
