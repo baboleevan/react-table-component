@@ -89,7 +89,7 @@ export interface ColumnFilterItem {
   children?: ColumnFilterItem[]
 }
 
-export type ColumnFilterMode = 'menu' | 'tree'
+export type ColumnFilterMode = 'menu' | 'tree' | 'text'
 
 /** 컬럼 정렬기 — 함수 또는 `{ compare, multiple }` (multiple: 우선순위, 숫자가 작을수록 먼저 적용) */
 export type ColumnSorter<T> =
@@ -144,8 +144,15 @@ export interface ColumnType<T = Record<string, unknown>> {
   defaultFilteredValue?: Key[] | null
   /** 커스텀 필터 패널 */
   filterDropdown?: (props: ColumnFilterDropdownProps<T>) => ReactNode
-  /** 필터 UI 모드 */
+  /** 필터 UI 모드 — `text`는 `filters` 없이 입력창만으로 검색 필터 */
   filterMode?: ColumnFilterMode
+  /**
+   * `filterMode: 'text'`일 때 사용합니다. `filters`/`onFilter` 없이 검색 문자열로 행을 통과시킵니다.
+   * `filteredValue`/`defaultFilteredValue`의 첫 번째 항목이 검색어로 저장됩니다.
+   */
+  onTextFilter?: (searchText: string, record: T) => boolean
+  /** `filterMode: 'text'` 전용 입력 placeholder */
+  filterPlaceholder?: string
   /** 필터 목록 내 검색 */
   filterSearch?: boolean
   /** 다중 필터 선택 (기본 true) */

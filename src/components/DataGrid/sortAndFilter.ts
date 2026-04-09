@@ -2,20 +2,36 @@ import type { Key } from 'react'
 import type { ColumnType } from './types'
 import { getRecordValue, getSorterCompare, getSorterMultiple } from './tableUtils'
 
+/** 단일 행이 현재 컬럼 필터 상태를 모두 통과하는지 */
+export function recordMatchesColumnFilters<T>(
+  record: T,
+  leafColumns: ColumnType<T>[],
+  filters: Record<string, Key[] | null | undefined>,
+): boolean {
+  for (const col of leafColumns) {
+    const selected = filters[col.key]
+    if (!selected?.length) continue
+
+    if (col.filterMode === 'text' && col.onTextFilter) {
+      const q = String(selected[0] ?? '').trim()
+      if (!q) continue
+      if (!col.onTextFilter(q, record)) return false
+      continue
+    }
+
+    if (!col.filters?.length || !col.onFilter) continue
+    const ok = selected.some((val) => col.onFilter!(val, record))
+    if (!ok) return false
+  }
+  return true
+}
+
 export function applyColumnFilters<T>(
   data: T[],
   leafColumns: ColumnType<T>[],
   filters: Record<string, Key[] | null | undefined>,
 ): T[] {
-  return data.filter((record) => {
-    for (const col of leafColumns) {
-      const selected = filters[col.key]
-      if (!selected?.length || !col.filters?.length || !col.onFilter) continue
-      const ok = selected.some((val) => col.onFilter!(val, record))
-      if (!ok) return false
-    }
-    return true
-  })
+  return data.filter((record) => recordMatchesColumnFilters(record, leafColumns, filters))
 }
 
 export function applyMultiSort<T>(

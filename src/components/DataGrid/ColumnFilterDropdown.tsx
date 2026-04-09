@@ -104,21 +104,58 @@ export function ColumnFilterDropdownPanel<T>({
     )
   }
 
+  const textValue = String(local[0] ?? '')
+
+  const confirmTextFilter = () => {
+    const trimmed = textValue.trim()
+    onConfirm(trimmed ? [trimmed] : [])
+    onClose()
+  }
+
+  const dropdownCustom = column.filterDropdown?.({
+    column,
+    selectedKeys: local,
+    setSelectedKeys: setLocal,
+    confirm: () => {
+      onConfirm(local)
+      onClose()
+    },
+    clearFilters: () => {
+      onClear()
+      onClose()
+    },
+    visible: true,
+  })
+
   const content =
-    column.filterDropdown?.({
-      column,
-      selectedKeys: local,
-      setSelectedKeys: setLocal,
-      confirm: () => {
-        onConfirm(local)
-        onClose()
-      },
-      clearFilters: () => {
-        onClear()
-        onClose()
-      },
-      visible: true,
-    }) ?? (
+    dropdownCustom ??
+    (column.filterMode === 'text' ? (
+      <div className="datagrid-filter-panel datagrid-filter-panel--text">
+        <input
+          className="datagrid-filter-search"
+          placeholder={column.filterPlaceholder ?? '검색'}
+          value={textValue}
+          onChange={(e) => setLocal(e.target.value ? [e.target.value] : [])}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              confirmTextFilter()
+            }
+          }}
+        />
+        <div className="datagrid-filter-actions">
+          <button type="button" className="datagrid-filter-btn" onClick={() => onClose()}>
+            닫기
+          </button>
+          <button type="button" className="datagrid-filter-btn" onClick={() => onClear()}>
+            초기화
+          </button>
+          <button type="button" className="datagrid-filter-btn datagrid-filter-btn--primary" onClick={confirmTextFilter}>
+            확인
+          </button>
+        </div>
+      </div>
+    ) : (
       <div className="datagrid-filter-panel">
         {column.filterSearch && (
           <input
@@ -166,7 +203,7 @@ export function ColumnFilterDropdownPanel<T>({
           </button>
         </div>
       </div>
-    )
+    ))
 
   return createPortal(
     <div

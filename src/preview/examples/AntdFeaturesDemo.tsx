@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react'
-import { DataGrid, TableSummary, type ColumnType, type TableFilters } from '@/components/DataGrid'
+import {
+  DataGrid,
+  TableSummary,
+  type ColumnType,
+  type SorterResult,
+  type TableFilters,
+} from '@/components/DataGrid'
 import { DemoBlock } from '../components/DemoBlock'
 
 interface Row {
@@ -34,6 +40,25 @@ const baseRows: Row[] = [
   },
 ]
 
+/** 정렬 + 필터 동시 데모용 (역할·도시 다양화) */
+const sortFilterDemoRows: Row[] = [
+  ...baseRows,
+  {
+    id: '4',
+    name: '최지훈',
+    role: 'dev',
+    address: { city: '대전', zip: '34000' },
+    amount: 150,
+  },
+  {
+    id: '5',
+    name: '정수진',
+    role: 'design',
+    address: { city: '서울', zip: '04500' },
+    amount: 310,
+  },
+]
+
 interface TreeRow {
   id: string
   title: string
@@ -51,6 +76,39 @@ const treeData: TreeRow[] = [
   },
   { id: 'p2', title: '프로젝트 B (자식 없음)' },
 ]
+
+const CODE_SORT_AND_FILTER = `// 같은 테이블에서 필터 + 정렬 (다중 정렬은 sorter.multiple 로 우선순위)
+columns={[
+  {
+    key: 'name',
+    filterMode: 'text',
+    onTextFilter: (q, r) => r.name.toLowerCase().includes(q.toLowerCase()),
+    sorter: { compare: (a, b) => a.name.localeCompare(b.name, 'ko'), multiple: 2 },
+  },
+  {
+    key: 'role',
+    filters: [{ text: '개발', value: 'dev' }, ...],
+    onFilter: (v, r) => r.role === v,
+    filterMultiple: true,
+  },
+  {
+    key: 'amount',
+    sorter: { compare: (a, b) => a.amount - b.amount, multiple: 1 },
+    defaultSortOrder: 'descend',
+  },
+]}
+// onChange(pagination, filters, sorter, extra) 로 둘 다 추적 가능`
+
+const CODE_TEXT_FILTER = `// filters 없이 텍스트만으로 필터 (filterMode: 'text' + onTextFilter)
+{
+  key: 'city',
+  title: '도시',
+  dataIndex: ['address', 'city'],
+  filterMode: 'text',
+  filterPlaceholder: '도시명 입력',
+  onTextFilter: (q, record) =>
+    record.address.city.toLowerCase().includes(q.trim().toLowerCase()),
+}`
 
 const CODE_FILTER = `// filters, defaultFilteredValue, defaultSortOrder, title/footer, onChange(filters), summary
 <DataGrid<Row>
@@ -98,7 +156,85 @@ const CODE_TABLE_LAYOUT = `<DataGrid
 
 export function AntdFeaturesDemo() {
   const [filterLog, setFilterLog] = useState<string>('—')
+  const [sortFilterLog, setSortFilterLog] = useState<string>('—')
   const [expandKeys, setExpandKeys] = useState<(string | number)[]>(['1'])
+
+  const sortFilterColumns = useMemo(
+    (): ColumnType<Row>[] => [
+      { key: 'id', title: 'ID', dataIndex: 'id', width: 72 },
+      {
+        key: 'name',
+        title: '이름 (텍스트 필터 + 정렬)',
+        dataIndex: 'name',
+        width: 200,
+        filterMode: 'text',
+        filterPlaceholder: '이름 일부 입력',
+        onTextFilter: (q, record) => record.name.toLowerCase().includes(q.trim().toLowerCase()),
+        sorter: { compare: (a, b) => a.name.localeCompare(b.name, 'ko'), multiple: 2 },
+        showSorterTooltip: true,
+      },
+      {
+        key: 'role',
+        title: '역할 (옵션 필터)',
+        dataIndex: 'role',
+        width: 140,
+        filters: [
+          { text: '개발', value: 'dev' },
+          { text: '디자인', value: 'design' },
+        ],
+        filterMultiple: true,
+        onFilter: (value, record) => record.role === value,
+      },
+      {
+        key: 'city',
+        title: '도시',
+        dataIndex: ['address', 'city'],
+        width: 100,
+      },
+      {
+        key: 'amount',
+        title: '금액 (정렬, multiple: 1)',
+        dataIndex: 'amount',
+        width: 120,
+        align: 'right',
+        sorter: { compare: (a, b) => a.amount - b.amount, multiple: 1 },
+        defaultSortOrder: 'descend',
+        showSorterTooltip: true,
+      },
+    ],
+    [],
+  )
+
+  const textFilterColumns = useMemo(
+    (): ColumnType<Row>[] => [
+      { key: 'id', title: 'ID', dataIndex: 'id', width: 72 },
+      { key: 'name', title: '이름', dataIndex: 'name', width: 120 },
+      {
+        key: 'role',
+        title: '역할',
+        dataIndex: 'role',
+        width: 100,
+      },
+      {
+        key: 'city',
+        title: '도시 (텍스트 필터)',
+        dataIndex: ['address', 'city'],
+        width: 160,
+        filterMode: 'text',
+        filterPlaceholder: '도시명 입력 (부분 일치)',
+        onTextFilter: (q, record) =>
+          record.address.city.toLowerCase().includes(q.trim().toLowerCase()),
+      },
+      {
+        key: 'amount',
+        title: '금액',
+        dataIndex: 'amount',
+        width: 90,
+        align: 'right',
+      },
+    ],
+    [],
+  )
 
   const filterColumns = useMemo(
     (): ColumnType<Row>[] => [
@@ -178,9 +314,71 @@ export function AntdFeaturesDemo() {
     <div className="demo-page">
       <h1 className="demo-page__title">Ant Design Table 호환 기능</h1>
       <p className="demo-page__desc">
-        필터·정렬(다중)·제목/푸터·합계·확장 행·트리·중첩 dataIndex·hidden/responsive·onChange(filters)·colSpan
+        필터·정렬(다중)·정렬+필터 동시 사용·제목/푸터·합계·확장 행·트리·중첩 dataIndex·hidden/responsive·onChange(filters)·colSpan
         등 TODO에 정리된 API를 한 화면에서 확인합니다.
       </p>
+
+      <DemoBlock
+        title="텍스트 검색 필터 (filterMode: 'text')"
+        description={
+          '`filters`·`onFilter` 없이 `filterMode: "text"`와 `onTextFilter`만으로 헤더 ▾에서 문자열 검색 필터를 씁니다. `filteredValue`의 첫 항목이 검색어로 저장됩니다.'
+        }
+        code={CODE_TEXT_FILTER}
+      >
+        <div style={{ height: 300 }}>
+          <DataGrid<Row>
+            rowKey="id"
+            dataSource={baseRows}
+            columns={textFilterColumns}
+            scroll={{ x: 700 }}
+          />
+        </div>
+      </DemoBlock>
+
+      <DemoBlock
+        title="정렬 + 필터 함께 사용"
+        description={
+          '먼저 필터로 행을 줄인 뒤, 남은 데이터에 정렬이 적용됩니다. 이름은 텍스트 필터와 정렬을 동시에, 역할은 옵션 필터, 금액은 기본 내림차순 정렬(multiple: 1)입니다. 금액·이름 헤더를 각각 누르면 다중 정렬이 동작합니다.'
+        }
+        code={CODE_SORT_AND_FILTER}
+      >
+        <div style={{ height: 340 }}>
+          <DataGrid<Row>
+            rowKey="id"
+            dataSource={sortFilterDemoRows}
+            columns={sortFilterColumns}
+            scroll={{ x: 820 }}
+            onChange={(_pagination, filters: TableFilters, sorter: SorterResult<Row> | SorterResult<Row>[]) => {
+              const list = Array.isArray(sorter) ? sorter : [sorter]
+              setSortFilterLog(
+                JSON.stringify(
+                  {
+                    filters,
+                    sorter: list.map((s) => ({
+                      columnKey: s.columnKey,
+                      order: s.order,
+                      field: s.field,
+                    })),
+                  },
+                  null,
+                  0,
+                ),
+              )
+            }}
+          />
+        </div>
+        <pre
+          style={{
+            marginTop: 12,
+            padding: 12,
+            background: '#f6f7f9',
+            fontSize: 12,
+            overflow: 'auto',
+          }}
+        >
+          {sortFilterLog}
+        </pre>
+      </DemoBlock>
 
       <DemoBlock
         title="필터 + defaultSortOrder + onChange(filters)"

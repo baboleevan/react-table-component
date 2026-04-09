@@ -31,6 +31,7 @@ import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorter
 import {
   applyColumnFilters,
   applyMultiSort,
+  recordMatchesColumnFilters,
   flattenTreeRows,
   flattenFlatDepthTreeRows,
   type FlatTreeRow,
@@ -75,6 +76,15 @@ function resolveFixedOffsets<T>(columns: ColumnType<T>[]): InternalColumnType<T>
     }
   }
   return result
+}
+
+/** 적용 중인 필터가 있는지(텍스트 모드는 공백 제외 첫 값 기준) */
+function isColumnFilterActive<T>(col: ColumnType<T>, selected: Key[] | null | undefined): boolean {
+  if (selected == null || selected.length === 0) return false
+  if (col.filterMode === 'text' && col.onTextFilter) {
+    return String(selected[0] ?? '').trim().length > 0
+  }
+  return true
 }
 
 /** 모든 리프(leaf) 컬럼을 순서대로 반환 */
@@ -561,7 +571,10 @@ export function DataGrid<T = Record<string, unknown>>({
   const mergedFilters = useMemo(() => {
     const out: TableFilters = {}
     for (const c of leafColumns) {
-      const hasFilter = (c.filters?.length && c.onFilter) || c.filterDropdown
+      const hasFilter =
+        (c.filters?.length && c.onFilter) ||
+        c.filterDropdown ||
+        (c.filterMode === 'text' && c.onTextFilter)
       if (!hasFilter) continue
       const v = c.filteredValue !== undefined ? c.filteredValue : internalFilters[c.key]
       out[c.key] = v === undefined ? null : v
@@ -618,14 +631,9 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const filteredTreeRows = useMemo(() => {
     if (!treeFlatRows) return null
-    return treeFlatRows.filter(({ record }) => {
-      for (const col of leafColumns) {
-        const selected = mergedFilters[col.key]
-        if (!selected?.length || !col.filters?.length || !col.onFilter) continue
-        if (!selected.some((val) => col.onFilter!(val, record))) return false
-      }
-      return true
-    })
+    return treeFlatRows.filter(({ record }) =>
+      recordMatchesColumnFilters(record, leafColumns as unknown as ColumnType<T>[], mergedFilters),
+    )
   }, [treeFlatRows, leafColumns, mergedFilters])
 
   const filteredFlatData = useMemo(() => {
@@ -1749,13 +1757,18 @@ export function DataGrid<T = Record<string, unknown>>({
                   }
 
                   const hasFilter = Boolean(
-                    isLeaf && ((col.filters?.length && col.onFilter) || col.filterDropdown),
+                    isLeaf &&
+                      ((col.filters?.length && col.onFilter) ||
+                        col.filterDropdown ||
+                        (col.filterMode === 'text' && col.onTextFilter)),
                   )
+                  const filterActive =
+                    hasFilter && isColumnFilterActive(col, mergedFilters[col.key] ?? null)
 
                   return (
                     <th
                       key={col.key}
-                      className={thClass}
+                      className={[thClass, filterActive ? 'filter-active' : ''].filter(Boolean).join(' ')}
                       colSpan={effectiveColSpan}
                       rowSpan={rowSpan > 1 ? rowSpan : undefined}
                       style={stickyStyle}
@@ -1775,8 +1788,11 @@ export function DataGrid<T = Record<string, unknown>>({
                         {hasFilter && (
                           <button
                             type="button"
-                            className="datagrid__filter-trigger"
+                            className={['datagrid__filter-trigger', filterActive ? 'datagrid__filter-trigger--active' : '']
+                              .filter(Boolean)
+                              .join(' ')}
                             aria-label="필터"
+                            aria-pressed={filterActive}
                             onClick={(e) => {
                               e.stopPropagation()
                               setFilterAnchorEl(e.currentTarget)
@@ -2160,7 +2176,9 @@ export function DataGrid<T = Record<string, unknown>>({
       )}
 
       {openFilterColumn &&
-        (openFilterColumn.filters?.length || openFilterColumn.filterDropdown) &&
+        (openFilterColumn.filters?.length ||
+          openFilterColumn.filterDropdown ||
+          (openFilterColumn.filterMode === 'text' && openFilterColumn.onTextFilter)) &&
         filterAnchorEl && (
           <ColumnFilterDropdownPanel
             column={openFilterColumn as ColumnType<Record<string, unknown>>}
