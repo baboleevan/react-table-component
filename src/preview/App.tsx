@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, startTransition } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Sidebar } from '@/preview/components/Sidebar'
 import { OverviewPage } from '@/preview/pages/OverviewPage'
@@ -32,7 +32,9 @@ function AppLayout() {
   const location = useLocation()
 
   useEffect(() => {
-    setIsSidebarOpen(false)
+    startTransition(() => {
+      setIsSidebarOpen(false)
+    })
   }, [location.pathname])
 
   useEffect(() => {
