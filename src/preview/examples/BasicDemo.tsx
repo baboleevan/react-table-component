@@ -1,7 +1,7 @@
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 const columns: ColumnType<Employee>[] = [
   { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
@@ -41,7 +41,7 @@ const columns: ColumnType<Employee>[] = [
   { key: 'memo', title: '메모', dataIndex: 'memo', width: 150, ellipsis: true, fixed: 'right' },
 ]
 
-const CODE = `import { EMPLOYEE_DATA } from '../mockData' // 10,000건 × 26컬럼
+const CODE = `import { EMPLOYEE_DATA } from '@/preview/mockData' // 10,000건 × 26컬럼
 
 <DataGrid<Employee>
   dataSource={EMPLOYEE_DATA}

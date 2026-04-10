@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getRecordValue, normalizeCellRenderResult } from './tableUtils'
+import { getRecordValue, normalizeCellRenderResult } from '@/components/DataGrid/tableUtils'
 describe('getRecordValue', () => {
   it('reads nested dataIndex path', () => {
     const row = { address: { city: 'Seoul' } }

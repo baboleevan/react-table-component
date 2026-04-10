@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 const columns: ColumnType<Employee>[] = [
   { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },

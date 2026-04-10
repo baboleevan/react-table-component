@@ -1,6 +1,6 @@
 import type { Key } from 'react'
-import type { ColumnType } from './types'
-import { getRecordValue, getSorterCompare, getSorterMultiple } from './tableUtils'
+import type { ColumnType } from '@/components/DataGrid/types'
+import { getRecordValue, getSorterCompare, getSorterMultiple } from '@/components/DataGrid/tableUtils'
 
 /** 단일 행이 현재 컬럼 필터 상태를 모두 통과하는지 */
 export function recordMatchesColumnFilters<T>(

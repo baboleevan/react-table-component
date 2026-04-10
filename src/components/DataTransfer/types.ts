@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import type { ColumnType } from '../DataGrid'
+import type { ColumnType } from '@/components/DataGrid'
 
 // ──────────────────────────────────────────────
 // DataTransfer props

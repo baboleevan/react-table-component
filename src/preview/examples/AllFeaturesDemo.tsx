@@ -1,8 +1,8 @@
 import { useState, useMemo } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import type { Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
+import type { Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 // ──────────────────────────────────────────────
 // 100,000행 생성 (mockData와 동일한 알고리즘)

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getCurrentBreakpoint, type GridBreakpoint } from './tableUtils'
+import { getCurrentBreakpoint, type GridBreakpoint } from '@/components/DataGrid/tableUtils'
 
 export type { GridBreakpoint }
 

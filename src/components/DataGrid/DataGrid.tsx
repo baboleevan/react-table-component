@@ -24,10 +24,10 @@ import type {
   ValidateError,
   ValidateResult,
   TableFilters,
-} from './types'
-import { useVirtualRows } from './useVirtualRows'
-import { useGridBreakpoint } from './useGridBreakpoint'
-import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorterMultiple } from './tableUtils'
+} from '@/components/DataGrid/types'
+import { useVirtualRows } from '@/components/DataGrid/useVirtualRows'
+import { useGridBreakpoint } from '@/components/DataGrid/useGridBreakpoint'
+import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorterMultiple } from '@/components/DataGrid/tableUtils'
 import {
   applyColumnFilters,
   applyMultiSort,
@@ -35,9 +35,9 @@ import {
   flattenTreeRows,
   flattenFlatDepthTreeRows,
   type FlatTreeRow,
-} from './sortAndFilter'
-import { ColumnFilterDropdownPanel } from './ColumnFilterDropdown'
-import './DataGrid.scss'
+} from '@/components/DataGrid/sortAndFilter'
+import { ColumnFilterDropdownPanel } from '@/components/DataGrid/ColumnFilterDropdown'
+import '@/components/DataGrid/DataGrid.scss'
 
 // ──────────────────────────────────────────────
 // 헬퍼 함수

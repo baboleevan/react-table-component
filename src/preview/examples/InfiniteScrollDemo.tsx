@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 // ──────────────────────────────────────────────
 // 가짜 API — 페이지 데이터를 반환합니다 (500 ms 지연)

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, type Key, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import type { ColumnFilterItem, ColumnType } from './types'
+import type { ColumnFilterItem, ColumnType } from '@/components/DataGrid/types'
 
 function filterItemsBySearch(items: ColumnFilterItem[], q: string): ColumnFilterItem[] {
   if (!q.trim()) return items

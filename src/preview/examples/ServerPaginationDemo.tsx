@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 // ──────────────────────────────────────────────
 // 가짜 API — 서버 사이드 페이지네이션을 시뮬레이션합니다

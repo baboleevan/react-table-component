@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
-import './InlineEditDemo.scss'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
+import '@/preview/examples/InlineEditDemo.scss'
 
 // ──────────────────────────────────────────────
 // 재사용 에디터 컴포넌트 (CustomEditorDemo와 동일)

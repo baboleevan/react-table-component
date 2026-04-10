@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { DataGrid, type ColumnType } from '@/components/DataGrid'
-import { DemoBlock } from '../components/DemoBlock'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 /** depth 기반 플랫 트리 행 (전위 순회: 부모 다음에 자식 행) */
 interface DepthTreeRecord {

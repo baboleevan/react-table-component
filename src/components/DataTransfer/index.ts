@@ -1,2 +1,2 @@
-export { DataTransfer } from './DataTransfer'
-export type { DataTransferProps } from './types'
+export { DataTransfer } from '@/components/DataTransfer/DataTransfer'
+export type { DataTransferProps } from '@/components/DataTransfer/types'

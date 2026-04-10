@@ -1,9 +1,9 @@
 import { useState, useCallback, useRef } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { EMPLOYEE_DATA, type Employee } from '../mockData'
-import { DemoBlock } from '../components/DemoBlock'
-import './ApiSaveDemo.scss'
+import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
+import { DemoBlock } from '@/preview/components/DemoBlock'
+import '@/preview/examples/ApiSaveDemo.scss'
 
 type DirtyMap = Record<number, Partial<Employee>>
 type SaveStatus = 'idle' | 'saving' | 'success' | 'error'

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType, DataGridHandle, ValidateError } from '@/components/DataGrid'
-import { DemoBlock } from '../components/DemoBlock'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 // ──────────────────────────────────────────────
 // 교차 컬럼 검증용 데이터

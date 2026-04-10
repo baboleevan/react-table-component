@@ -1,8 +1,8 @@
 import { useState, useMemo, useCallback, useRef } from 'react'
-import { DataGrid } from '../DataGrid'
-import { getRecordValue } from '../DataGrid/tableUtils'
-import type { DataTransferProps } from './types'
-import './DataTransfer.scss'
+import { DataGrid } from '@/components/DataGrid'
+import { getRecordValue } from '@/components/DataGrid/tableUtils'
+import type { DataTransferProps } from '@/components/DataTransfer/types'
+import '@/components/DataTransfer/DataTransfer.scss'
 
 // ──────────────────────────────────────────────
 // 헬퍼

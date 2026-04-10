@@ -1,6 +1,6 @@
-export { DataGrid, default } from './DataGrid'
-export { TableSummary, TableSummaryRow, TableSummaryCell, TableSummaryHeaderCell } from './TableSummary'
-import { TableSummary } from './TableSummary'
+export { DataGrid, default } from '@/components/DataGrid/DataGrid'
+export { TableSummary, TableSummaryRow, TableSummaryCell, TableSummaryHeaderCell } from '@/components/DataGrid/TableSummary'
+import { TableSummary } from '@/components/DataGrid/TableSummary'
 
 /** Ant Design `Table.Summary` 와 유사한 네임스페이스 */
 export const Table = {
@@ -33,4 +33,4 @@ export type {
   ValidateResult,
   ValidateStatus,
   ValidatorFn,
-} from './types'
+} from '@/components/DataGrid/types'

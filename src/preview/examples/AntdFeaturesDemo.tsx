@@ -6,7 +6,7 @@ import {
   type SorterResult,
   type TableFilters,
 } from '@/components/DataGrid'
-import { DemoBlock } from '../components/DemoBlock'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 interface Row {
   id: string

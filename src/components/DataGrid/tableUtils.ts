@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import type { ColumnType } from './types'
+import type { ColumnType } from '@/components/DataGrid/types'
 
 export type GridBreakpoint = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl'
 

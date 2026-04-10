@@ -1,7 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
-import { DemoBlock } from '../components/DemoBlock'
+import { DemoBlock } from '@/preview/components/DemoBlock'
 
 interface DemoRow {
   id: number

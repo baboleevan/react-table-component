@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite'
 import { useState } from 'react'
-import { DataGrid } from './DataGrid'
-import type { ColumnType } from './types'
+import { DataGrid } from '@/components/DataGrid/DataGrid'
+import type { ColumnType } from '@/components/DataGrid/types'
 
 type DemoRow = { id: number; name: string; dept: string }
 
