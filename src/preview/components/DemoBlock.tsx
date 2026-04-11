@@ -1,4 +1,6 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { highlightPreviewCodeToHtml } from '@/preview/components/highlightPreviewCode'
+import { usePreviewSourceCode } from '@/preview/context/PreviewSourceCodeContext'
 
 interface DemoBlockProps {
   title: string
@@ -9,7 +11,13 @@ interface DemoBlockProps {
 }
 
 export function DemoBlock({ title, description, code, children, previewClassName }: DemoBlockProps) {
-  const [showCode, setShowCode] = useState(false)
+  const { sourceCodeExpanded } = usePreviewSourceCode()
+  const [showCode, setShowCode] = useState(sourceCodeExpanded)
+  const codeHtml = useMemo(() => highlightPreviewCodeToHtml(code), [code])
+
+  useEffect(() => {
+    setShowCode(sourceCodeExpanded)
+  }, [sourceCodeExpanded])
 
   return (
     <div className="demo-block">
@@ -18,11 +26,15 @@ export function DemoBlock({ title, description, code, children, previewClassName
         {description && <p>{description}</p>}
       </div>
       <div className={`demo-block__preview ${previewClassName ?? ''}`}>{children}</div>
-      <div className="demo-block__code-toggle" onClick={() => setShowCode(!showCode)}>
+      <button type="button" className="demo-block__code-toggle" onClick={() => setShowCode((v) => !v)}>
         <span>{showCode ? '▲' : '▼'}</span>
         {showCode ? '소스 코드 숨기기' : '소스 코드 보기'}
-      </div>
-      {showCode && <div className="demo-block__code">{code}</div>}
+      </button>
+      {showCode && (
+        <pre className="demo-block__code">
+          <code className="demo-block__code-inner" dangerouslySetInnerHTML={{ __html: codeHtml }} />
+        </pre>
+      )}
     </div>
   )
 }

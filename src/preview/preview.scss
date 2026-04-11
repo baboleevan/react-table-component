@@ -59,8 +59,67 @@
 // ── Main content ────────────────────────────────
 .preview-main {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   overflow-y: auto;
   background: #f5f5f5;
+}
+
+// ── 상단 바: 데스크톱(sticky) / 모바일(고정 전폭) ──
+.preview-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+}
+
+.preview-toolbar {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+
+  &__btn {
+    margin: 0;
+    max-width: 100%;
+    padding: 6px 14px;
+    border: 1px solid #d9d9d9;
+    border-radius: 6px;
+    background: #fafafa;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.88);
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s, background 0.15s;
+
+    &:hover {
+      color: #1677ff;
+      border-color: #1677ff;
+      background: #fff;
+    }
+
+    &[aria-pressed='true'] {
+      border-color: #1677ff;
+      color: #1677ff;
+      background: #e6f4ff;
+    }
+  }
+
+  &__text--narrow {
+    display: none;
+  }
 }
 
 .preview-mobile-menu-button {
@@ -196,9 +255,14 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    width: 100%;
+    margin: 0;
     padding: 10px 20px;
+    border: 0;
     border-top: 1px solid #f0f0f0;
     background: #fafafa;
+    font: inherit;
+    text-align: left;
     cursor: pointer;
     font-size: 12px;
     color: rgba(0, 0, 0, 0.45);
@@ -210,15 +274,55 @@
   }
 
   &__code {
+    margin: 0;
     background: #1e1e1e;
     color: #d4d4d4;
     padding: 20px;
-    font-family: 'Fira Code', 'Cascadia Code', monospace;
+    font-family: 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
     font-size: 13px;
     line-height: 1.6;
     overflow-x: auto;
     white-space: pre;
     border-top: 1px solid #333;
+  }
+
+  &__code-inner {
+    font: inherit;
+    color: inherit;
+  }
+
+  // 하이라이트 토큰 (highlightPreviewCode.ts 와 클래스명 동기화)
+  &__code-kw {
+    color: #569cd6;
+  }
+
+  &__code-str {
+    color: #ce9178;
+  }
+
+  &__code-tpl {
+    color: #ce9178;
+  }
+
+  &__code-cmt {
+    color: #6a9955;
+    font-style: italic;
+  }
+
+  &__code-num {
+    color: #b5cea8;
+  }
+
+  &__code-id {
+    color: #9cdcfe;
+  }
+
+  &__code-tag {
+    color: #4ec9b0;
+  }
+
+  &__code-pun {
+    color: #d4d4d4;
   }
 }
 
@@ -262,16 +366,30 @@
     }
   }
 
-  .preview-mobile-menu-button {
+  .preview-app-header {
     position: fixed;
-    top: 12px;
-    left: 12px;
+    top: 0;
+    left: 0;
+    right: 0;
     z-index: 70;
+    justify-content: space-between;
+    gap: 8px;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 10px;
+    padding-left: max(12px, env(safe-area-inset-left, 0px));
+    padding-right: max(12px, env(safe-area-inset-right, 0px));
+    box-sizing: border-box;
+    box-shadow: 0 1px 0 #e8e8e8;
+  }
+
+  .preview-mobile-menu-button {
+    position: static;
     display: inline-flex;
+    flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    min-width: 56px;
+    min-width: 52px;
     height: 36px;
+    padding: 0 12px;
     border: 1px solid #d9d9d9;
     border-radius: 8px;
     background: #ffffff;
@@ -279,6 +397,19 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+  }
+
+  .preview-toolbar__text--wide {
+    display: none;
+  }
+
+  .preview-toolbar__text--narrow {
+    display: inline;
+  }
+
+  .preview-toolbar__btn {
+    padding: 6px 10px;
+    font-size: 12px;
   }
 
   .preview-sidebar-backdrop {
@@ -302,7 +433,8 @@
 
   .preview-main {
     width: 100%;
-    padding-top: 56px;
+    // 고정 헤더(안전 영역 + 8 + 버튼 36 + 10) 와 동일 여백
+    padding-top: calc(54px + env(safe-area-inset-top, 0px));
   }
 
   .preview-overview {
