@@ -16,6 +16,7 @@ import { CustomEditorDemo } from '@/preview/examples/CustomEditorDemo'
 import { GroupHeaderResizeDemo } from '@/preview/examples/GroupHeaderResizeDemo'
 import { AllFeaturesDemo } from '@/preview/examples/AllFeaturesDemo'
 import { ServerPaginationDemo } from '@/preview/examples/ServerPaginationDemo'
+import { ServerSortDemo } from '@/preview/examples/ServerSortDemo'
 import { InfiniteScrollDemo } from '@/preview/examples/InfiniteScrollDemo'
 import { InlineEditDemo } from '@/preview/examples/InlineEditDemo'
 import { ValidationDemo } from '@/preview/examples/ValidationDemo'
@@ -25,7 +26,32 @@ import { ClickRowSelectDemo } from '@/preview/examples/ClickRowSelectDemo'
 import { AntdFeaturesDemo } from '@/preview/examples/AntdFeaturesDemo'
 import { FlatTreeDemo } from '@/preview/examples/FlatTreeDemo'
 import { StripedDemo } from '@/preview/examples/StripedDemo'
+import { PreviewSourceCodeProvider, usePreviewSourceCode } from '@/preview/context/PreviewSourceCodeContext'
 import '@/preview/preview.scss'
+
+function PreviewSourceToolbar() {
+  const { sourceCodeExpanded, setSourceCodeExpanded } = usePreviewSourceCode()
+  const expanded = sourceCodeExpanded
+
+  return (
+    <div className="preview-toolbar">
+      <button
+        type="button"
+        className="preview-toolbar__btn"
+        aria-pressed={expanded}
+        aria-label={expanded ? '모든 데모 소스 코드 숨기기' : '모든 데모 소스 코드 보기'}
+        onClick={() => setSourceCodeExpanded(!expanded)}
+      >
+        <span className="preview-toolbar__text preview-toolbar__text--wide">
+          {expanded ? '소스 코드 모두 숨기기' : '소스 코드 모두 보기'}
+        </span>
+        <span className="preview-toolbar__text preview-toolbar__text--narrow">
+          {expanded ? '코드 숨기기' : '코드 보기'}
+        </span>
+      </button>
+    </div>
+  )
+}
 
 function AppLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
@@ -59,20 +85,23 @@ function AppLayout() {
       <Sidebar isOpen={isSidebarOpen} onClose={closeSidebar} />
       <button
         type="button"
-        className="preview-mobile-menu-button"
-        aria-label="메뉴 열기"
-        aria-expanded={isSidebarOpen}
-        onClick={toggleSidebar}
-      >
-        메뉴
-      </button>
-      <button
-        type="button"
         className={`preview-sidebar-backdrop${isSidebarOpen ? ' visible' : ''}`}
         aria-label="메뉴 닫기"
         onClick={closeSidebar}
       />
       <main className="preview-main">
+        <header className="preview-app-header">
+          <button
+            type="button"
+            className="preview-mobile-menu-button"
+            aria-label="메뉴 열기"
+            aria-expanded={isSidebarOpen}
+            onClick={toggleSidebar}
+          >
+            메뉴
+          </button>
+          <PreviewSourceToolbar />
+        </header>
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<OverviewPage />} />
@@ -90,6 +119,7 @@ function AppLayout() {
           <Route path="/components/api-save" element={<ApiSaveDemo />} />
           <Route path="/components/all-features" element={<AllFeaturesDemo />} />
           <Route path="/components/server-pagination" element={<ServerPaginationDemo />} />
+          <Route path="/components/server-sort" element={<ServerSortDemo />} />
           <Route path="/components/infinite-scroll" element={<InfiniteScrollDemo />} />
           <Route path="/components/inline-edit" element={<InlineEditDemo />} />
           <Route path="/components/validation" element={<ValidationDemo />} />
@@ -108,7 +138,9 @@ function AppLayout() {
 export function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
+      <PreviewSourceCodeProvider>
+        <AppLayout />
+      </PreviewSourceCodeProvider>
     </BrowserRouter>
   )
 }

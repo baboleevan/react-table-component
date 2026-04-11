@@ -32,6 +32,12 @@ const CARDS = [
     tag: 'Sorting',
   },
   {
+    path: '/components/server-sort',
+    title: '서버 정렬',
+    desc: 'sortRemote + API 요청으로 정렬 상태·데이터 동기화',
+    tag: 'Remote',
+  },
+  {
     path: '/components/fixed-columns',
     title: '고정 컬럼',
     desc: '좌우 sticky 컬럼, 가로 스크롤',

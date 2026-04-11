@@ -19,6 +19,7 @@ const MENU = [
       { path: '/components/api-save', label: 'API 저장 (편집 → 전송)' },
       { path: '/components/all-features', label: '전체 기능 통합 (10만 행)' },
       { path: '/components/server-pagination', label: '서버 페이지네이션' },
+      { path: '/components/server-sort', label: '서버 정렬 (sortRemote)' },
       { path: '/components/infinite-scroll', label: '무한 스크롤' },
       { path: '/components/validation', label: '셀 검증 (Validation)' },
       { path: '/components/focused-row', label: '포커스된 행 추적 (onFocusedRowChange)' },

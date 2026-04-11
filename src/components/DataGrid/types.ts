@@ -452,6 +452,13 @@ export interface DataGridProps<T = Record<string, unknown>> {
   /** 헤더 sticky 보조 — `offsetHeader`는 기존 sticky th에 `--th-sticky-top` 보정으로 반영 */
   sticky?: boolean | StickyConfig
   /**
+   * true면 정렬은 서버(또는 상위)에서만 적용합니다.
+   * - `dataSource` 순서를 그대로 표시합니다(클라이언트 `applyMultiSort` 비활성).
+   * - 헤더 정렬 표시는 컬럼의 `sortOrder`(`ascend` | `descend`)로 제어합니다.
+   * - `onChange`의 `sorter`를 받아 API 호출 후, 정렬된 데이터와 컬럼 `sortOrder`를 갱신하세요.
+   */
+  sortRemote?: boolean
+  /**
    * 정렬·필터·페이지 변경 콜백 (Ant Design Table 순서: pagination, filters, sorter, extra)
    */
   onChange?: (

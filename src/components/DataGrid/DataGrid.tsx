@@ -492,6 +492,7 @@ export function DataGrid<T = Record<string, unknown>>({
   tableLayout = 'fixed',
   getPopupContainer,
   sticky,
+  sortRemote = false,
 }: DataGridProps<T>) {
   // ── 정렬 (다중 컬럼: Shift+클릭) ─────────────────
   const [sortStates, setSortStates] = useState<{ columnKey: string; order: 'ascend' | 'descend' }[]>([])
@@ -583,7 +584,7 @@ export function DataGrid<T = Record<string, unknown>>({
   }, [leafColumns, internalFilters])
 
   useEffect(() => {
-    if (sortInitRef.current) return
+    if (sortInitRef.current || sortRemote) return
     const initial: { columnKey: string; order: 'ascend' | 'descend' }[] = []
     for (const c of leafColumns) {
       const o = c.defaultSortOrder
@@ -593,16 +594,24 @@ export function DataGrid<T = Record<string, unknown>>({
       sortInitRef.current = true
       setSortStates(initial)
     }
-  }, [leafColumns])
+  }, [leafColumns, sortRemote])
+
+  const sortOrderStatesFromColumns = useMemo(
+    () =>
+      leafColumns
+        .filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
+        .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
+        .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' })),
+    [leafColumns],
+  )
 
   const effectiveSortStates = useMemo(() => {
-    const fromProps = leafColumns
-      .filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
-      .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
-      .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' }))
-    if (fromProps.length > 0) return fromProps
+    if (sortRemote) {
+      return sortOrderStatesFromColumns
+    }
+    if (sortOrderStatesFromColumns.length > 0) return sortOrderStatesFromColumns
     return sortStates
-  }, [leafColumns, sortStates])
+  }, [sortRemote, sortOrderStatesFromColumns, sortStates])
 
   const flatTreeOpts = expandable?.treeDataFromFlatList
   const childrenColumnName = expandable?.childrenColumnName
@@ -647,8 +656,9 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const sortedFlatData = useMemo(() => {
     if (treeFlatRows) return null
+    if (sortRemote) return filteredFlatData ?? []
     return applyMultiSort(filteredFlatData ?? [], effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
-  }, [treeFlatRows, filteredFlatData, effectiveSortStates, leafColumns])
+  }, [treeFlatRows, filteredFlatData, effectiveSortStates, leafColumns, sortRemote])
 
   const rowPacks = useMemo((): {
     record: T
@@ -1140,15 +1150,9 @@ export function DataGrid<T = Record<string, unknown>>({
         return Array.isArray(di) ? di.join('.') : (di ?? c.key)
       }
 
-      setSortStates((prev) => {
-        const fromProps = leafColumns.filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
-        const base =
-          fromProps.length > 0
-            ? fromProps
-                .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
-                .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' }))
-            : prev
-
+      const computeNextSortKeys = (
+        base: { columnKey: string; order: 'ascend' | 'descend' }[],
+      ): { columnKey: string; order: 'ascend' | 'descend' }[] => {
         const ex = base.find((s) => s.columnKey === col.key)
         let next: { columnKey: string; order: 'ascend' | 'descend' }[]
         if (!shift) {
@@ -1162,12 +1166,45 @@ export function DataGrid<T = Record<string, unknown>>({
             next = base.map((s, j) => (j === i ? { ...s, order: 'descend' as const } : s))
           else next = base.filter((s) => s.columnKey !== col.key)
         }
+        return next
+      }
 
-        const filtered = applyColumnFilters(
-          dataSource,
-          leafColumns as unknown as ColumnType<T>[],
-          mergedFilters as Record<string, Key[] | null | undefined>,
+      const filtered = applyColumnFilters(
+        dataSource,
+        leafColumns as unknown as ColumnType<T>[],
+        mergedFilters as Record<string, Key[] | null | undefined>,
+      )
+
+      if (sortRemote) {
+        const next = computeNextSortKeys(sortOrderStatesFromColumns)
+        const sr: SorterResult<T>[] = next.map((s) => {
+          const c = leafColumns.find((x) => x.key === s.columnKey)!
+          return {
+            column: c,
+            columnKey: s.columnKey,
+            order: s.order,
+            field: sorterField(c),
+          }
+        })
+        onChange?.(
+          { current: currentPage, pageSize: currentPageSize },
+          mergedFilters,
+          sr.length <= 1 ? (sr[0] ?? {}) : sr,
+          { currentDataSource: filtered, action: 'sort' },
         )
+        return
+      }
+
+      setSortStates((prev) => {
+        const fromProps = leafColumns.filter((c) => c.sortOrder === 'ascend' || c.sortOrder === 'descend')
+        const base =
+          fromProps.length > 0
+            ? fromProps
+                .sort((a, b) => (getSorterMultiple(a) ?? 100) - (getSorterMultiple(b) ?? 100))
+                .map((c) => ({ columnKey: c.key, order: c.sortOrder as 'ascend' | 'descend' }))
+            : prev
+
+        const next = computeNextSortKeys(base)
         const after = applyMultiSort(filtered, next, leafColumns as unknown as ColumnType<T>[])
         const sr: SorterResult<T>[] = next.map((s) => {
           const c = leafColumns.find((x) => x.key === s.columnKey)!
@@ -1188,7 +1225,17 @@ export function DataGrid<T = Record<string, unknown>>({
         return next
       })
     },
-    [isTreeMode, leafColumns, dataSource, mergedFilters, onChange, currentPage, currentPageSize],
+    [
+      isTreeMode,
+      leafColumns,
+      dataSource,
+      mergedFilters,
+      onChange,
+      currentPage,
+      currentPageSize,
+      sortRemote,
+      sortOrderStatesFromColumns,
+    ],
   )
 
   // ── 페이지네이션 핸들러 ────────────────────────
@@ -1524,7 +1571,9 @@ export function DataGrid<T = Record<string, unknown>>({
       )
       const after = isTreeMode
         ? filtered
-        : applyMultiSort(filtered, effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
+        : sortRemote
+          ? filtered
+          : applyMultiSort(filtered, effectiveSortStates, leafColumns as unknown as ColumnType<T>[])
       const sr: SorterResult<T>[] = effectiveSortStates.map((s) => {
         const c = leafColumns.find((x) => x.key === s.columnKey)!
         const di = c.dataIndex
@@ -1544,6 +1593,7 @@ export function DataGrid<T = Record<string, unknown>>({
       mergedFilters,
       effectiveSortStates,
       isTreeMode,
+      sortRemote,
       onChange,
       currentPage,
       currentPageSize,
