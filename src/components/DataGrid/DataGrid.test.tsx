@@ -1,8 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
+import { createRef } from 'react'
 import { DataGrid } from '@/components/DataGrid'
-import type { ColumnType } from '@/components/DataGrid'
+import type { ColumnType, DataGridHandle } from '@/components/DataGrid'
 
 type Row = { id: number; name: string }
 
@@ -67,5 +68,256 @@ describe('DataGrid', () => {
 
     await user.click(screen.getByRole('columnheader', { name: /이름/i }))
     expect(onChange).toHaveBeenCalled()
+  })
+
+  it('applies external cell style from cellStyleResolver', () => {
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        cellStyleResolver={({ rowKey, columnKey }) =>
+          rowKey === 2 && columnKey === 'name'
+            ? { style: { backgroundColor: '#222222', color: '#f5f5f5' } }
+            : undefined
+        }
+      />,
+    )
+
+    const targetCell = screen.getByText('B').closest('td')
+    expect(targetCell).toHaveStyle({ backgroundColor: '#222222', color: '#f5f5f5' })
+  })
+
+  it('applies declarative rowStyleMap for row and specific column', () => {
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        rowStyleMap={{
+          '2': {
+            row: { style: { backgroundColor: '#101010', color: '#ffffff' } },
+            cells: { name: { style: { color: '#22c55e' } } },
+          },
+        }}
+      />,
+    )
+
+    const targetCell = screen.getByText('B').closest('td')
+    expect(targetCell).toHaveStyle({ backgroundColor: '#101010', color: '#22c55e' })
+  })
+
+  it('updates cell style through gridRef imperative API', () => {
+    const gridRef = createRef<DataGridHandle<Row>>()
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        gridRef={gridRef}
+      />,
+    )
+
+    act(() => {
+      gridRef.current?.setCellStyle(2, 'name', { style: { backgroundColor: '#ff0000', color: '#ffffff' } })
+    })
+
+    const targetCell = screen.getByText('B').closest('td')
+    expect(targetCell).toHaveStyle({ backgroundColor: '#ff0000', color: '#ffffff' })
+  })
+
+  it('merges inline styles: column onCell overrides cellStyleResolver', () => {
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[
+          {
+            ...nameCol,
+            onCell: () => ({ style: { backgroundColor: 'rgb(0, 0, 255)' } }),
+          },
+        ]}
+        dataSource={[{ id: 1, name: 'A' }]}
+        cellStyleResolver={() => ({ style: { backgroundColor: 'rgb(255, 0, 0)' } })}
+      />,
+    )
+
+    const cell = screen.getByText('A').closest('td')
+    expect(cell).toHaveStyle({ backgroundColor: 'rgb(0, 0, 255)' })
+  })
+
+  it('undoStyles and redoStyles toggle imperative cell style', () => {
+    const gridRef = createRef<DataGridHandle<Row>>()
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        gridRef={gridRef}
+      />,
+    )
+
+    act(() => {
+      gridRef.current?.setCellStyle(2, 'name', { style: { backgroundColor: 'rgb(255, 0, 0)' } })
+    })
+    expect(screen.getByText('B').closest('td')).toHaveStyle({ backgroundColor: 'rgb(255, 0, 0)' })
+
+    act(() => {
+      gridRef.current?.undoStyles()
+    })
+    expect(screen.getByText('B').closest('td')).not.toHaveStyle({ backgroundColor: 'rgb(255, 0, 0)' })
+
+    act(() => {
+      gridRef.current?.redoStyles()
+    })
+    expect(screen.getByText('B').closest('td')).toHaveStyle({ backgroundColor: 'rgb(255, 0, 0)' })
+  })
+
+  it('setRangeStyle with columnKeys * applies to all leaf columns', () => {
+    type TwoCol = { id: number; a: string; b: string }
+    const gridRef = createRef<DataGridHandle<TwoCol>>()
+    const cols: ColumnType<TwoCol>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a' },
+      { key: 'b', title: 'B', dataIndex: 'b' },
+    ]
+    render(
+      <DataGrid<TwoCol>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, a: 'x', b: 'y' }]}
+        gridRef={gridRef}
+      />,
+    )
+
+    act(() => {
+      gridRef.current?.setRangeStyle({
+        rowKeys: [1],
+        columnKeys: '*',
+        config: { style: { backgroundColor: 'rgb(0, 128, 0)' } },
+      })
+    })
+
+    expect(screen.getByText('x').closest('td')).toHaveStyle({ backgroundColor: 'rgb(0, 128, 0)' })
+    expect(screen.getByText('y').closest('td')).toHaveStyle({ backgroundColor: 'rgb(0, 128, 0)' })
+  })
+
+  it('applies tone class from rowStyleMap', () => {
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[{ id: 1, name: 'A' }]}
+        rowStyleMap={{ '1': { cells: { name: { tone: 'error' } } } }}
+      />,
+    )
+
+    const cell = screen.getByText('A').closest('td')
+    expect(cell?.className).toContain('datagrid__td--tone-error')
+  })
+
+  it('sets aria-sort on sortable header', () => {
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[{ ...nameCol, sorter: true }]}
+        dataSource={[{ id: 1, name: 'A' }]}
+      />,
+    )
+    const th = screen.getByRole('columnheader', { name: /이름/i })
+    expect(th).toHaveAttribute('aria-sort', 'none')
+  })
+
+  it('copyToClipboard copies page as TSV', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+    const gridRef = createRef<DataGridHandle<Row>>()
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        gridRef={gridRef}
+      />,
+    )
+
+    await act(async () => {
+      await gridRef.current?.copyToClipboard({ scope: 'page' })
+    })
+
+    expect(writeText).toHaveBeenCalled()
+    const payload = writeText.mock.calls[0]![0] as string
+    expect(payload).toContain('이름')
+    expect(payload).toContain('A')
+    expect(payload).toContain('B')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('exportAsCsv uses blob URL', () => {
+    const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:test')
+    const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+
+    const gridRef = createRef<DataGridHandle<Row>>()
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[{ id: 1, name: 'X' }]}
+        gridRef={gridRef}
+      />,
+    )
+
+    act(() => {
+      gridRef.current?.exportAsCsv({ filename: 'rows.csv', includeBom: false })
+    })
+
+    expect(createObjectURL).toHaveBeenCalled()
+
+    createObjectURL.mockRestore()
+    revokeObjectURL.mockRestore()
+  })
+
+  it('scrollToRowKey changes page in uncontrolled pagination', async () => {
+    type PageRow = { id: number; name: string }
+    const gridRef = createRef<DataGridHandle<PageRow>>()
+    const rows: PageRow[] = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
+    const cols: ColumnType<PageRow>[] = [{ key: 'name', title: '이름', dataIndex: 'name' }]
+
+    render(
+      <DataGrid<PageRow>
+        rowKey="id"
+        columns={cols}
+        dataSource={rows}
+        pagination={{ pageSize: 8 }}
+        gridRef={gridRef}
+      />,
+    )
+
+    expect(screen.getByText('Row 1')).toBeInTheDocument()
+    expect(screen.queryByText('Row 20')).not.toBeInTheDocument()
+
+    act(() => {
+      gridRef.current?.scrollToRowKey(20)
+    })
+
+    await waitFor(() => {
+      expect(screen.getByText('Row 20')).toBeInTheDocument()
+    })
+    expect(screen.queryByText('Row 1')).not.toBeInTheDocument()
   })
 })

@@ -26,6 +26,7 @@ import { ClickRowSelectDemo } from '@/preview/examples/ClickRowSelectDemo'
 import { AntdFeaturesDemo } from '@/preview/examples/AntdFeaturesDemo'
 import { FlatTreeDemo } from '@/preview/examples/FlatTreeDemo'
 import { StripedDemo } from '@/preview/examples/StripedDemo'
+import { CellStyleResolverDemo } from '@/preview/examples/CellStyleResolverDemo'
 import { PreviewSourceCodeProvider, usePreviewSourceCode } from '@/preview/context/PreviewSourceCodeContext'
 import '@/preview/preview.scss'
 
@@ -129,6 +130,7 @@ function AppLayout() {
           <Route path="/components/antd-table-features" element={<AntdFeaturesDemo />} />
           <Route path="/components/flat-tree" element={<FlatTreeDemo />} />
           <Route path="/components/striped" element={<StripedDemo />} />
+          <Route path="/components/cell-style-resolver" element={<CellStyleResolverDemo />} />
         </Routes>
       </main>
     </div>

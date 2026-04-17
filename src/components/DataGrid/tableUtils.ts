@@ -61,6 +61,22 @@ export function normalizeCellRenderResult(result: unknown): RenderCellResult {
   return { children: result as ReactNode }
 }
 
+/** CSV 한 칸 이스케이프 (RFC 4180, 구분자 기본 `,`) */
+export function escapeCsvCell(value: unknown, delimiter = ','): string {
+  const s = value === null || value === undefined ? '' : String(value)
+  const mustQuote = s.includes('"') || s.includes('\n') || s.includes('\r') || s.includes(delimiter)
+  const escaped = s.replace(/"/g, '""')
+  return mustQuote ? `"${escaped}"` : escaped
+}
+
+/** TSV/클립보드용: 탭·개행을 제거해 한 줄로 만듭니다 */
+export function flattenForTsv(value: unknown): string {
+  return String(value ?? '')
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\n/g, ' ')
+    .replace(/\t/g, ' ')
+}
 
 /** 컬럼이 현재 브레이크포인트에서 표시되는지 (responsive: 해당 구간 이상에서만 표시) */
 export function isColumnVisibleAtBreakpoint<T>(col: ColumnType<T>): boolean {

@@ -28,6 +28,7 @@ const MENU = [
       { path: '/components/antd-table-features', label: 'Ant Design Table 호환 (필터·확장·합계 등)' },
       { path: '/components/flat-tree', label: '플랫 트리 (depth + 폴딩)' },
       { path: '/components/striped', label: '줄무늬 (striped)' },
+      { path: '/components/cell-style-resolver', label: '셀 색상 제어 (cellStyleResolver)' },
     ],
   },
 ]

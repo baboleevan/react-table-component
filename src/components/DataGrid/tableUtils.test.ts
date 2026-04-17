@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { getRecordValue, normalizeCellRenderResult } from '@/components/DataGrid/tableUtils'
+import { getRecordValue, normalizeCellRenderResult, escapeCsvCell, flattenForTsv } from '@/components/DataGrid/tableUtils'
 describe('getRecordValue', () => {
   it('reads nested dataIndex path', () => {
     const row = { address: { city: 'Seoul' } }
@@ -28,5 +28,21 @@ describe('normalizeCellRenderResult', () => {
 
   it('passes through primitives as children', () => {
     expect(normalizeCellRenderResult(42).children).toBe(42)
+  })
+})
+
+describe('escapeCsvCell', () => {
+  it('quotes when delimiter appears', () => {
+    expect(escapeCsvCell('a,b', ',')).toBe('"a,b"')
+  })
+
+  it('escapes double quotes', () => {
+    expect(escapeCsvCell('say "hi"', ',')).toBe('"say ""hi"""')
+  })
+})
+
+describe('flattenForTsv', () => {
+  it('removes tabs and newlines', () => {
+    expect(flattenForTsv('a\tb\nc')).toBe('a b c')
   })
 })

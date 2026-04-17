@@ -75,7 +75,87 @@ export interface DataGridHandle<T = Record<string, unknown>> {
   getCell: (rowKey: string | number, columnKey: string) => unknown
   /** dataSource 전체 배열 반환 */
   getData: () => T[]
+  /** 특정 셀 스타일 설정/갱신 */
+  setCellStyle: (rowKey: string | number, columnKey: string, config: DataGridCellStyleConfig) => void
+  /** 특정 행 전체 셀 스타일 설정/갱신 */
+  setRowStyle: (rowKey: string | number, config: DataGridCellStyleConfig) => void
+  /** 특정 셀 스타일 제거 */
+  clearCellStyle: (rowKey: string | number, columnKey: string) => void
+  /** 특정 행 전체 스타일 제거 */
+  clearRowStyle: (rowKey: string | number) => void
+  /** 명령형으로 설정한 모든 스타일 제거 */
+  clearAllStyles: () => void
+  /** 여러 행·열에 동일 스타일을 한 번에 적용 (columnKeys: '*'면 해당 행의 모든 데이터 컬럼) */
+  setRangeStyle: (params: DataGridRangeStyleParams) => void
+  /** 직전 명령형 스타일 변경 취소 (최대 50단계) */
+  undoStyles: () => void
+  /** undoStyles로 되돌린 변경 다시 적용 */
+  redoStyles: () => void
+  /**
+   * 현재 페이지(또는 전체) 데이터에서 rowKey에 해당하는 행으로 세로 스크롤을 맞춥니다.
+   * 가상화 모드에서만 스크롤 이동이 의미 있습니다.
+   */
+  scrollToRowKey: (rowKey: string | number) => void
+  /**
+   * 현재 그리드 데이터를 클립보드에 TSV로 복사합니다.
+   * `scope: 'auto'`일 때: 선택 행 → 활성 셀 행 → 현재 페이지 순으로 결정합니다.
+   */
+  copyToClipboard: (options?: DataGridCopyOptions) => Promise<void>
+  /** 현재 그리드 데이터를 CSV 파일로 내려받습니다 (기본 UTF-8 BOM, Excel 한글 호환). */
+  exportAsCsv: (options?: DataGridExportCsvOptions) => void
 }
+
+/** `copyToClipboard` / `exportAsCsv` 범위 */
+export type DataGridExportScope = 'auto' | 'selected' | 'activeRow' | 'page'
+
+export interface DataGridCopyOptions {
+  scope?: DataGridExportScope
+}
+
+export interface DataGridExportCsvOptions {
+  /** 다운로드 파일명 (기본: export.csv) */
+  filename?: string
+  /** 필드 구분자 (기본: ,) */
+  delimiter?: string
+  scope?: DataGridExportScope
+  /** false면 UTF-8 BOM 생략 */
+  includeBom?: boolean
+}
+
+export interface CellStyleResolverParams<T = Record<string, unknown>> {
+  record: T
+  rowKey: string | number
+  rowIndex: number
+  column: ColumnType<T>
+  columnKey: string
+  columnIndex: number
+  value: unknown
+}
+
+/** 셀 톤 — SCSS 프리셋 + 일관된 대비 (a11y 보조) */
+export type DataGridCellTone = 'neutral' | 'success' | 'warning' | 'error' | 'info'
+
+export interface DataGridCellStyleConfig {
+  style?: CSSProperties
+  className?: string
+  /** 토큰형 톤 클래스 (`datagrid__td--tone-*`). `neutral`은 클래스를 붙이지 않습니다. */
+  tone?: DataGridCellTone
+}
+
+/** `gridRef.setRangeStyle` 인자 */
+export interface DataGridRangeStyleParams {
+  rowKeys: (string | number)[]
+  /** 데이터 컬럼 key 배열. '*'이면 현재 그리드의 모든 리프 컬럼에 적용 */
+  columnKeys: string[] | '*'
+  config: DataGridCellStyleConfig
+}
+
+export interface DataGridRowStyleConfig {
+  row?: DataGridCellStyleConfig
+  cells?: Record<string, DataGridCellStyleConfig | undefined>
+}
+
+export type DataGridRowStyleMap = Record<string, DataGridRowStyleConfig | undefined>
 
 // ──────────────────────────────────────────────
 // 컬럼 정의 (Ant Design Table과 유사한 인터페이스)
@@ -429,6 +509,31 @@ export interface DataGridProps<T = Record<string, unknown>> {
   rowClassName?: string | ((record: T, index: number) => string)
   /** 행 이벤트 핸들러 */
   onRow?: (record: T, index: number) => React.HTMLAttributes<HTMLTableRowElement>
+  /**
+   * 외부에서 특정 셀 스타일을 동적으로 제어합니다.
+   * row/column/value 정보를 기반으로 className 또는 style을 반환할 수 있습니다.
+   *
+   * **인라인 `style` 병합 우선순위(낮음 → 높음)**  
+   * `cellStyleResolver` → 컬럼 `onCell` → `rowStyleMap.row` → `rowStyleMap.cells[col]` →
+   * `gridRef` 명령형(`setCellStyle` / `setRowStyle` / `setRangeStyle`)  
+   * 레이아웃용 값(들여쓰기, sticky 변수)은 그 위에 다시 덮어씁니다.
+   */
+  cellStyleResolver?: (params: CellStyleResolverParams<T>) => DataGridCellStyleConfig | undefined
+  /**
+   * rowKey 기반 셀/행 스타일 오버라이드(선언형).
+   * 병합 우선순위는 `cellStyleResolver` 설명과 동일하며, 명령형 API보다는 낮습니다.
+   */
+  rowStyleMap?: DataGridRowStyleMap
+  /**
+   * 인쇄 시 배경·글자색이 브라우저에서 생략되지 않도록 `print-color-adjust: exact`를 켭니다.
+   * @default false
+   */
+  printBackground?: boolean
+  /**
+   * 지정 시 컬럼 리사이즈 너비를 `localStorage`에 저장·복원합니다.
+   * 키: `datagrid:colwidths:${persistColumnWidthsKey}`
+   */
+  persistColumnWidthsKey?: string
   /** 테이블 상단 제목 */
   title?: (currentPageData: T[]) => ReactNode
   /** 테이블 하단 푸터 */

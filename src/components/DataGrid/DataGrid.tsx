@@ -24,10 +24,24 @@ import type {
   ValidateError,
   ValidateResult,
   TableFilters,
+  DataGridCellStyleConfig,
+  DataGridCellTone,
+  DataGridCopyOptions,
+  DataGridExportCsvOptions,
+  DataGridExportScope,
+  DataGridRangeStyleParams,
+  DataGridRowStyleMap,
 } from '@/components/DataGrid/types'
 import { useVirtualRows } from '@/components/DataGrid/useVirtualRows'
 import { useGridBreakpoint } from '@/components/DataGrid/useGridBreakpoint'
-import { getRecordValue, filterColumnsTree, normalizeCellRenderResult, getSorterMultiple } from '@/components/DataGrid/tableUtils'
+import {
+  getRecordValue,
+  filterColumnsTree,
+  normalizeCellRenderResult,
+  getSorterMultiple,
+  escapeCsvCell,
+  flattenForTsv,
+} from '@/components/DataGrid/tableUtils'
 import {
   applyColumnFilters,
   applyMultiSort,
@@ -160,6 +174,109 @@ function stepCellLeft(
   if (col > 0) return { row, col: col - 1 }
   if (row > 0) return { row: row - 1, col: numCols - 1 }
   return null
+}
+
+function mergeClassNames(...classNames: (string | undefined)[]): string | undefined {
+  const merged = classNames
+    .map((item) => item?.trim())
+    .filter((item): item is string => Boolean(item))
+    .join(' ')
+  return merged || undefined
+}
+
+const STYLE_UNDO_MAX = 50
+
+function cloneStyleMap(map: DataGridRowStyleMap): DataGridRowStyleMap {
+  try {
+    return structuredClone(map)
+  } catch {
+    return JSON.parse(JSON.stringify(map)) as DataGridRowStyleMap
+  }
+}
+
+function toneToClass(tone?: DataGridCellTone): string | undefined {
+  if (!tone || tone === 'neutral') return undefined
+  return `datagrid__td--tone-${tone}`
+}
+
+function patchSetCellStyle(
+  prev: DataGridRowStyleMap,
+  rk: string | number,
+  columnKey: string,
+  config: DataGridCellStyleConfig,
+): DataGridRowStyleMap {
+  const key = String(rk)
+  const prevRow = prev[key]
+  const prevCell = prevRow?.cells?.[columnKey]
+  const nextCell: DataGridCellStyleConfig = {
+    style: { ...(prevCell?.style ?? {}), ...(config.style ?? {}) },
+    className: mergeClassNames(prevCell?.className, config.className),
+    tone: config.tone ?? prevCell?.tone,
+  }
+  return {
+    ...prev,
+    [key]: {
+      row: prevRow?.row,
+      cells: { ...(prevRow?.cells ?? {}), [columnKey]: nextCell },
+    },
+  }
+}
+
+function patchSetRowStyle(
+  prev: DataGridRowStyleMap,
+  rk: string | number,
+  config: DataGridCellStyleConfig,
+): DataGridRowStyleMap {
+  const key = String(rk)
+  const prevRow = prev[key]
+  return {
+    ...prev,
+    [key]: {
+      row: {
+        style: { ...(prevRow?.row?.style ?? {}), ...(config.style ?? {}) },
+        className: mergeClassNames(prevRow?.row?.className, config.className),
+        tone: config.tone ?? prevRow?.row?.tone,
+      },
+      cells: prevRow?.cells,
+    },
+  }
+}
+
+function patchClearCellStyle(prev: DataGridRowStyleMap, rk: string | number, columnKey: string): DataGridRowStyleMap {
+  const key = String(rk)
+  const prevRow = prev[key]
+  if (!prevRow?.cells?.[columnKey]) return prev
+  const nextCells = { ...(prevRow.cells ?? {}) }
+  delete nextCells[columnKey]
+  if (!prevRow.row && Object.keys(nextCells).length === 0) {
+    const next = { ...prev }
+    delete next[key]
+    return next
+  }
+  return { ...prev, [key]: { row: prevRow.row, cells: nextCells } }
+}
+
+function patchClearRowStyle(prev: DataGridRowStyleMap, rk: string | number): DataGridRowStyleMap {
+  const key = String(rk)
+  if (!prev[key]) return prev
+  const next = { ...prev }
+  delete next[key]
+  return next
+}
+
+function patchSetRangeStyle(
+  prev: DataGridRowStyleMap,
+  params: DataGridRangeStyleParams,
+  leafColumnKeys: string[],
+): DataGridRowStyleMap {
+  let next = prev
+  const keys = params.columnKeys === '*' ? leafColumnKeys : params.columnKeys
+  for (const rk of params.rowKeys) {
+    for (const ck of keys) {
+      next = patchSetCellStyle(next, rk, ck, params.config)
+    }
+  }
+  return next
 }
 
 function findNextEditableRight(
@@ -472,6 +589,8 @@ export function DataGrid<T = Record<string, unknown>>({
   locale,
   rowClassName,
   onRow,
+  cellStyleResolver,
+  rowStyleMap,
   onChange,
   onCellEdit,
   editMode = 'dblclick',
@@ -493,6 +612,8 @@ export function DataGrid<T = Record<string, unknown>>({
   getPopupContainer,
   sticky,
   sortRemote = false,
+  printBackground = false,
+  persistColumnWidthsKey,
 }: DataGridProps<T>) {
   // ── 정렬 (다중 컬럼: Shift+클릭) ─────────────────
   const [sortStates, setSortStates] = useState<{ columnKey: string; order: 'ascend' | 'descend' }[]>([])
@@ -503,6 +624,10 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 활성 셀 (키보드 네비게이션) ────────────
   const [activeCellPos, setActiveCellPos] = useState<{ rowAbsIdx: number; colIdx: number } | null>(null)
+  const activeCellPosRef = useRef(activeCellPos)
+  useLayoutEffect(() => {
+    activeCellPosRef.current = activeCellPos
+  }, [activeCellPos])
 
   // ── 편집 상태 ────────────────────────────────
   const [editCell, setEditCell] = useState<{ rowKey: string | number; colKey: string } | null>(null)
@@ -691,6 +816,26 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 리사이즈 상태 ─────────────────────────────
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({})
+  const columnWidthsRef = useRef(columnWidths)
+  useLayoutEffect(() => {
+    columnWidthsRef.current = columnWidths
+  }, [columnWidths])
+
+  /** localStorage에서 컬럼 너비 복원 */
+  useLayoutEffect(() => {
+    if (!persistColumnWidthsKey || typeof localStorage === 'undefined') return
+    const raw = localStorage.getItem(`datagrid:colwidths:${persistColumnWidthsKey}`)
+    if (!raw) return
+    try {
+      const parsed = JSON.parse(raw) as Record<string, number>
+      if (parsed && typeof parsed === 'object') {
+        setColumnWidths((prev) => ({ ...prev, ...parsed }))
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [persistColumnWidthsKey])
+
   const resizeRef = useRef<{ key: string; startX: number; startWidth: number; moved: boolean } | null>(null)
 
   // ── 편집된 셀 추적 (dirty): 원본 값을 저장하여 현재 값과 비교 ──
@@ -698,18 +843,51 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 검증 상태 ─────────────────────────────────
   const [validateErrors, setValidateErrors] = useState<ValidateError[]>([])
+  const [imperativeRowStyleMap, setImperativeRowStyleMap] = useState<DataGridRowStyleMap>({})
+  const imperativeStyleUndoRef = useRef<DataGridRowStyleMap[]>([])
+  const imperativeStyleRedoRef = useRef<DataGridRowStyleMap[]>([])
+
+  const commitImperativeStyle = useCallback((updater: (prev: DataGridRowStyleMap) => DataGridRowStyleMap) => {
+    setImperativeRowStyleMap((prev) => {
+      imperativeStyleUndoRef.current.push(cloneStyleMap(prev))
+      imperativeStyleRedoRef.current = []
+      if (imperativeStyleUndoRef.current.length > STYLE_UNDO_MAX) imperativeStyleUndoRef.current.shift()
+      return updater(prev)
+    })
+  }, [])
+
+  const undoStyles = useCallback(() => {
+    setImperativeRowStyleMap((current) => {
+      const snap = imperativeStyleUndoRef.current.pop()
+      if (!snap) return current
+      imperativeStyleRedoRef.current.push(cloneStyleMap(current))
+      return snap
+    })
+  }, [])
+
+  const redoStyles = useCallback(() => {
+    setImperativeRowStyleMap((current) => {
+      const snap = imperativeStyleRedoRef.current.pop()
+      if (!snap) return current
+      imperativeStyleUndoRef.current.push(cloneStyleMap(current))
+      return snap
+    })
+  }, [])
+
   // 명령형 핸들(gridRef)에서 최신 상태에 접근하기 위한 ref (stale closure 방지)
   const validateErrorsRef = useRef<ValidateError[]>([])
   const dataSourceRef = useRef(dataSource)
   const resolvedColumnsRef = useRef<InternalColumnType<T>[]>([])
   const rowKeyPropRef = useRef(rowKey)
   const onValidateChangeRef = useRef(onValidateChange)
+  const rowSelectionRef = useRef(rowSelection)
 
   // 매 렌더마다 최신값 동기화
   dataSourceRef.current = dataSource
   resolvedColumnsRef.current = resolvedColumns
   rowKeyPropRef.current = rowKey
   onValidateChangeRef.current = onValidateChange
+  rowSelectionRef.current = rowSelection
 
   // ── 검증 오류 Map (셀 룩업: `${rowKey}::${colKey}`) ──────────────
   const validateErrorMap = useMemo(() => {
@@ -766,6 +944,148 @@ export function DataGrid<T = Record<string, unknown>>({
     rowHeight,
     overscan: 8,
   })
+
+  const pagedDataRef = useRef(pagedData)
+  const scrollToRowRef = useRef(scrollToRow)
+  const rowPacksRef = useRef(rowPacks)
+  const currentPageSizeRef = useRef(currentPageSize)
+  const isPaginationDisabledRef = useRef(isPaginationDisabled)
+  const isControlledPaginationRef = useRef(isControlledPagination)
+  useLayoutEffect(() => {
+    pagedDataRef.current = pagedData
+  }, [pagedData])
+  useLayoutEffect(() => {
+    scrollToRowRef.current = scrollToRow
+  }, [scrollToRow])
+  useLayoutEffect(() => {
+    rowPacksRef.current = rowPacks
+  }, [rowPacks])
+  useLayoutEffect(() => {
+    currentPageSizeRef.current = currentPageSize
+  }, [currentPageSize])
+  useLayoutEffect(() => {
+    isPaginationDisabledRef.current = isPaginationDisabled
+    isControlledPaginationRef.current = isControlledPagination
+  }, [isPaginationDisabled, isControlledPagination])
+
+  const scrollToRowKey = useCallback((rk: string | number) => {
+    const absIdx = rowPacksRef.current.findIndex((p) => String(p.rowKey) === String(rk))
+    if (absIdx < 0) return
+
+    const pageSize = Math.max(1, currentPageSizeRef.current)
+    const shouldPageJump = !isPaginationDisabledRef.current && !isControlledPaginationRef.current
+
+    if (shouldPageJump) {
+      const targetPage = Math.floor(absIdx / pageSize) + 1
+      const localIdx = absIdx % pageSize
+      setInternalPage(targetPage)
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToRowRef.current(localIdx)
+        })
+      })
+      return
+    }
+
+    const localIdx = pagedDataRef.current.findIndex((p) => String(p.rowKey) === String(rk))
+    if (localIdx >= 0) scrollToRowRef.current(localIdx)
+  }, [])
+
+  const resolveExportScopeRecords = useCallback((scope: DataGridExportScope): T[] => {
+    const rkProp = rowKeyPropRef.current
+    const src = dataSourceRef.current
+    const paged = pagedDataRef.current
+    const selectedKeys = rowSelectionRef.current?.selectedRowKeys ?? []
+    const active = activeCellPosRef.current
+
+    if (scope === 'selected') {
+      if (selectedKeys.length === 0) return []
+      const keySet = new Set(selectedKeys.map((k) => String(k)))
+      return src.filter((rec, idx) => keySet.has(String(getRowKey(rec, rkProp, idx))))
+    }
+    if (scope === 'activeRow') {
+      if (!active) return []
+      const pack = paged[active.rowAbsIdx]
+      return pack?.record ? [pack.record] : []
+    }
+    if (scope === 'page') {
+      return paged.map((p) => p.record)
+    }
+    if (selectedKeys.length > 0) {
+      const keySet = new Set(selectedKeys.map((k) => String(k)))
+      return src.filter((rec, idx) => keySet.has(String(getRowKey(rec, rkProp, idx))))
+    }
+    if (active) {
+      const pack = paged[active.rowAbsIdx]
+      return pack?.record ? [pack.record] : []
+    }
+    return paged.map((p) => p.record)
+  }, [])
+
+  const buildTsvFromRecords = useCallback((records: T[]) => {
+    const cols = resolvedColumnsRef.current
+    const header = cols.map((c) => (typeof c.title === 'string' ? c.title : c.key)).join('\t')
+    const lines = records.map((rec) =>
+      cols.map((col) => flattenForTsv(getRecordValue(rec, col.dataIndex, col.key))).join('\t'),
+    )
+    return [header, ...lines].join('\n')
+  }, [])
+
+  const buildCsvFromRecords = useCallback((records: T[], delimiter: string) => {
+    const cols = resolvedColumnsRef.current
+    const header = cols
+      .map((c) => escapeCsvCell(typeof c.title === 'string' ? c.title : c.key, delimiter))
+      .join(delimiter)
+    const lines = records.map((rec) =>
+      cols.map((col) => escapeCsvCell(getRecordValue(rec, col.dataIndex, col.key), delimiter)).join(delimiter),
+    )
+    return [header, ...lines].join('\n')
+  }, [])
+
+  const copyToClipboard = useCallback(
+    async (options?: DataGridCopyOptions) => {
+      const scope = options?.scope ?? 'auto'
+      const records = resolveExportScopeRecords(scope)
+      if (!records.length) return
+      const text = buildTsvFromRecords(records)
+      try {
+        await navigator.clipboard.writeText(text)
+      } catch {
+        const ta = document.createElement('textarea')
+        ta.value = text
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'fixed'
+        ta.style.left = '-9999px'
+        document.body.appendChild(ta)
+        ta.select()
+        document.execCommand('copy')
+        document.body.removeChild(ta)
+      }
+    },
+    [resolveExportScopeRecords, buildTsvFromRecords],
+  )
+
+  const exportAsCsv = useCallback(
+    (options?: DataGridExportCsvOptions) => {
+      const scope = options?.scope ?? 'auto'
+      const records = resolveExportScopeRecords(scope)
+      if (!records.length) return
+      const delimiter = options?.delimiter ?? ','
+      const csv = buildCsvFromRecords(records, delimiter)
+      const bom = options?.includeBom === false ? '' : '\uFEFF'
+      const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = options?.filename ?? 'export.csv'
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    },
+    [resolveExportScopeRecords, buildCsvFromRecords],
+  )
 
   const visibleData = useMemo(() => {
     if (!shouldVirtualize) return pagedData
@@ -1023,6 +1343,13 @@ export function DataGrid<T = Record<string, unknown>>({
         return
       }
 
+      // ── 클립보드: Ctrl/Cmd + C (입력 포커스가 있으면 브라우저 기본 복사 유지) ──
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isEditorFocused) {
+        e.preventDefault()
+        void copyToClipboard({ scope: 'auto' })
+        return
+      }
+
       // ── 편집 모드 ──
       if (editCell) {
         if (e.key === 'Tab') {
@@ -1134,6 +1461,7 @@ export function DataGrid<T = Record<string, unknown>>({
       runValidator,
       containerRef,
       isCellEditable,
+      copyToClipboard,
     ],
   )
 
@@ -1402,10 +1730,24 @@ export function DataGrid<T = Record<string, unknown>>({
         const colDef = leafColumns.find((c) => c.key === key)
         const min = colDef?.minWidth ?? 40
         const max = colDef?.maxWidth ?? Infinity
-        setColumnWidths((prev) => ({ ...prev, [key]: Math.min(max, Math.max(min, sw + delta)) }))
+        setColumnWidths((prev) => {
+          const next = { ...prev, [key]: Math.min(max, Math.max(min, sw + delta)) }
+          columnWidthsRef.current = next
+          return next
+        })
       }
       const onMouseUp = () => {
         const session = resizeRef.current
+        if (session?.moved && persistColumnWidthsKey && typeof localStorage !== 'undefined') {
+          try {
+            localStorage.setItem(
+              `datagrid:colwidths:${persistColumnWidthsKey}`,
+              JSON.stringify(columnWidthsRef.current),
+            )
+          } catch {
+            /* quota / private mode */
+          }
+        }
         if (session?.moved && thEl) {
           const t0 = performance.now()
           const ac = new AbortController()
@@ -1426,7 +1768,7 @@ export function DataGrid<T = Record<string, unknown>>({
       document.addEventListener('mousemove', onMouseMove)
       document.addEventListener('mouseup', onMouseUp)
     },
-    [columnWidths, leafColumns],
+    [columnWidths, leafColumns, persistColumnWidthsKey],
   )
 
   // ── gridRef 명령형 핸들 등록 ─────────────────────
@@ -1507,12 +1849,36 @@ export function DataGrid<T = Record<string, unknown>>({
 
       /** dataSource 전체 배열 반환 */
       getData: (): T[] => dataSourceRef.current,
+      setCellStyle: (rk: string | number, columnKey: string, config: DataGridCellStyleConfig) => {
+        commitImperativeStyle((prev) => patchSetCellStyle(prev, rk, columnKey, config))
+      },
+      setRowStyle: (rk: string | number, config: DataGridCellStyleConfig) => {
+        commitImperativeStyle((prev) => patchSetRowStyle(prev, rk, config))
+      },
+      clearCellStyle: (rk: string | number, columnKey: string) => {
+        commitImperativeStyle((prev) => patchClearCellStyle(prev, rk, columnKey))
+      },
+      clearRowStyle: (rk: string | number) => {
+        commitImperativeStyle((prev) => patchClearRowStyle(prev, rk))
+      },
+      clearAllStyles: () => {
+        commitImperativeStyle(() => ({}))
+      },
+      setRangeStyle: (params: DataGridRangeStyleParams) => {
+        const leafKeys = resolvedColumnsRef.current.map((c) => c.key)
+        commitImperativeStyle((prev) => patchSetRangeStyle(prev, params, leafKeys))
+      },
+      undoStyles,
+      redoStyles,
+      scrollToRowKey,
+      copyToClipboard,
+      exportAsCsv,
     }
     ;(gridRef as React.MutableRefObject<typeof handle>).current = handle
     return () => {
       ;(gridRef as React.MutableRefObject<typeof handle | null>).current = null
     }
-  }, [gridRef])
+  }, [gridRef, commitImperativeStyle, undoStyles, redoStyles, scrollToRowKey, copyToClipboard, exportAsCsv])
 
   // ── 헤더 행 계산 ─────────────────────────────
   const maxDepth = useMemo(() => getMaxDepth(effectiveColumns), [effectiveColumns])
@@ -1652,7 +2018,13 @@ export function DataGrid<T = Record<string, unknown>>({
   const BodyRowTag = components?.body?.row ?? 'tr'
 
   // ── 루트 클래스 ────────────────────────────────
-  const rootClass = ['datagrid', `datagrid--${size}`, bordered && 'bordered', className]
+  const rootClass = [
+    'datagrid',
+    `datagrid--${size}`,
+    bordered && 'bordered',
+    printBackground && 'datagrid--print-bg',
+    className,
+  ]
     .filter(Boolean)
     .join(' ')
 
@@ -1815,6 +2187,15 @@ export function DataGrid<T = Record<string, unknown>>({
                   const filterActive =
                     hasFilter && isColumnFilterActive(col, mergedFilters[col.key] ?? null)
 
+                  const ariaSort: 'ascending' | 'descending' | 'none' | undefined =
+                    isLeaf && col.sorter
+                      ? currentOrder === 'ascend'
+                        ? 'ascending'
+                        : currentOrder === 'descend'
+                          ? 'descending'
+                          : 'none'
+                      : undefined
+
                   return (
                     <th
                       key={col.key}
@@ -1822,6 +2203,7 @@ export function DataGrid<T = Record<string, unknown>>({
                       colSpan={effectiveColSpan}
                       rowSpan={rowSpan > 1 ? rowSpan : undefined}
                       style={stickyStyle}
+                      aria-sort={ariaSort}
                       onClick={
                         isLeaf
                           ? (e) => {
@@ -1994,6 +2376,33 @@ export function DataGrid<T = Record<string, unknown>>({
                   {resolvedColumns.map((col, colIdx) => {
                     const cellProps = col.onCell?.(record, absIdx) ?? {}
                     const rawValue = getRecordValue(record, col.dataIndex, col.key)
+                    const rowStyleKey = String(rk)
+                    const propStyleConfig = rowStyleMap?.[rowStyleKey]
+                    const imperativeStyleConfig = imperativeRowStyleMap[rowStyleKey]
+                    const resolvedCellStyle = cellStyleResolver?.({
+                      record,
+                      rowKey: rk,
+                      rowIndex: absIdx,
+                      column: col,
+                      columnKey: col.key,
+                      columnIndex: colIdx,
+                      value: rawValue,
+                    })
+                    const resolvedRowClassName = mergeClassNames(
+                      propStyleConfig?.row?.className,
+                      imperativeStyleConfig?.row?.className,
+                    )
+                    const resolvedColumnClassName = mergeClassNames(
+                      propStyleConfig?.cells?.[col.key]?.className,
+                      imperativeStyleConfig?.cells?.[col.key]?.className,
+                    )
+                    const toneClass = mergeClassNames(
+                      toneToClass(resolvedCellStyle?.tone),
+                      toneToClass(propStyleConfig?.row?.tone),
+                      toneToClass(propStyleConfig?.cells?.[col.key]?.tone),
+                      toneToClass(imperativeStyleConfig?.row?.tone),
+                      toneToClass(imperativeStyleConfig?.cells?.[col.key]?.tone),
+                    )
 
                     const editableForRow = isCellEditable(col, record, absIdx)
                     // inline 모드: 편집 가능한 셀은 항상 에디터 노출
@@ -2026,6 +2435,10 @@ export function DataGrid<T = Record<string, unknown>>({
                       showTreeLines && colIdx === 0 ? 'datagrid__td--tree-lines' : '',
                       // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
                       validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
+                      toneClass ?? '',
+                      resolvedCellStyle?.className ?? '',
+                      resolvedRowClassName ?? '',
+                      resolvedColumnClassName ?? '',
                     ]
                       .filter(Boolean)
                       .join(' ')
@@ -2086,7 +2499,12 @@ export function DataGrid<T = Record<string, unknown>>({
                         rowSpan={displayNr?.props?.rowSpan}
                         className={`${tdClass} ${cellProps.className ?? ''}`.trim()}
                         style={{
+                          ...resolvedCellStyle?.style,
                           ...cellProps.style,
+                          ...propStyleConfig?.row?.style,
+                          ...propStyleConfig?.cells?.[col.key]?.style,
+                          ...imperativeStyleConfig?.row?.style,
+                          ...imperativeStyleConfig?.cells?.[col.key]?.style,
                           ...(colIdx === 0 && indentPx && !showTreeLines ? { paddingLeft: indentPx } : {}),
                           ...(col.fixed === 'left'
                             ? ({ '--sticky-left': `${col._left ?? 0}px` } as CSSProperties)

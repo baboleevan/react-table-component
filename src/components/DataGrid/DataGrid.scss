@@ -1046,6 +1046,34 @@
   }
 }
 
+// ── 셀 톤 토큰 (`DataGridCellStyleConfig.tone` / `cellStyleResolver`) ──
+.datagrid .datagrid__td.datagrid__td--tone-success {
+  background-color: #f6ffed;
+  color: #135200;
+}
+
+.datagrid .datagrid__td.datagrid__td--tone-warning {
+  background-color: #fffbe6;
+  color: #ad6800;
+}
+
+.datagrid .datagrid__td.datagrid__td--tone-error {
+  background-color: #fff1f0;
+  color: #a8071a;
+}
+
+.datagrid .datagrid__td.datagrid__td--tone-info {
+  background-color: #e6f4ff;
+  color: #0958d9;
+}
+
+@media print {
+  .datagrid.datagrid--print-bg {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 @keyframes datagrid-spin {
   to {
     transform: rotate(360deg);

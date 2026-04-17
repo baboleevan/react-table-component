@@ -73,6 +73,12 @@ const CARDS = [
     desc: 'striped prop으로 홀수 행 배경, CSS 변수로 색 조정',
     tag: 'Style',
   },
+  {
+    path: '/components/cell-style-resolver',
+    title: '셀 색상 제어',
+    desc: '외부에서 row/column 기준으로 특정 셀 배경색·글자색 변경',
+    tag: 'Cell Style',
+  },
 ]
 
 export function OverviewPage() {
