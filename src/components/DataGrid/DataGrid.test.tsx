@@ -292,6 +292,36 @@ describe('DataGrid', () => {
     revokeObjectURL.mockRestore()
   })
 
+  it('slices full dataSource when controlled pagination total matches data length', () => {
+    const rows: Row[] = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={rows}
+        pagination={{ current: 1, pageSize: 10, total: rows.length }}
+      />,
+    )
+    expect(screen.getByText('Row 1')).toBeInTheDocument()
+    expect(screen.getByText('Row 10')).toBeInTheDocument()
+    expect(screen.queryByText('Row 11')).not.toBeInTheDocument()
+  })
+
+  it('renders the last page of a 10,000-row client-paginated grid', () => {
+    const rows: Row[] = Array.from({ length: 10_000 }, (_, i) => ({ id: i + 1, name: `Row ${i + 1}` }))
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={rows}
+        pagination={{ current: 200, pageSize: 50, total: rows.length }}
+      />,
+    )
+    expect(screen.getByText('Row 9951')).toBeInTheDocument()
+    expect(screen.getByText('Row 10000')).toBeInTheDocument()
+    expect(screen.queryByText('Row 9950')).not.toBeInTheDocument()
+  })
+
   it('scrollToRowKey changes page in uncontrolled pagination', async () => {
     type PageRow = { id: number; name: string }
     const gridRef = createRef<DataGridHandle<PageRow>>()

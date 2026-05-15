@@ -920,10 +920,18 @@ export function DataGrid<T = Record<string, unknown>>({
   const totalCount = paginationConfig?.total ?? rowPacks.length
 
   const pagedData = useMemo(() => {
-    if (isPaginationDisabled || paginationConfig?.total !== undefined) return rowPacks
-    const start = (currentPage - 1) * currentPageSize
-    return rowPacks.slice(start, start + currentPageSize)
-  }, [rowPacks, isPaginationDisabled, paginationConfig, currentPage, currentPageSize])
+    if (isPaginationDisabled) return rowPacks
+    // 서버 모드: dataSource는 현재 페이지만, total은 전체 건수
+    const total = paginationConfig?.total
+    const isServerPagination = total !== undefined && rowPacks.length < total
+    if (isServerPagination) return rowPacks
+    const pageSize = Math.max(1, currentPageSize)
+    const rowCount = rowPacks.length
+    const maxPage = Math.max(1, Math.ceil(rowCount / pageSize))
+    const page = Math.min(Math.max(1, currentPage), maxPage)
+    const start = (page - 1) * pageSize
+    return rowPacks.slice(start, Math.min(start + pageSize, rowCount))
+  }, [rowPacks, isPaginationDisabled, paginationConfig?.total, currentPage, currentPageSize])
 
   const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
   const hasExpandCol = hasExpandRender || isTreeMode
@@ -939,11 +947,17 @@ export function DataGrid<T = Record<string, unknown>>({
     visibleRange,
     onScroll: onVirtualScroll,
     scrollToRow,
+    resetScroll,
   } = useVirtualRows({
     totalCount: pagedData.length,
     rowHeight,
     overscan: 8,
   })
+
+  useLayoutEffect(() => {
+    if (isPaginationDisabled) return
+    resetScroll()
+  }, [currentPage, currentPageSize, isPaginationDisabled, resetScroll])
 
   const pagedDataRef = useRef(pagedData)
   const scrollToRowRef = useRef(scrollToRow)
@@ -1571,6 +1585,7 @@ export function DataGrid<T = Record<string, unknown>>({
     (page: number, pageSize: number) => {
       setInternalPage(page)
       setInternalPageSize(pageSize)
+      resetScroll()
       // 페이지 변경 시 키보드 위치 초기화
       setActiveCellPos(null)
       setEditCell(null)
@@ -1591,7 +1606,7 @@ export function DataGrid<T = Record<string, unknown>>({
         },
       )
     },
-    [paginationConfig, onChange, mergedFilters, effectiveSortStates, leafColumns, rowPacks],
+    [paginationConfig, onChange, mergedFilters, effectiveSortStates, leafColumns, rowPacks, resetScroll],
   )
 
   // ── 선택 핸들러 ────────────────────────────────

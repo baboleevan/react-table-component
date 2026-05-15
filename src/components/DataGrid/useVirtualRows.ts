@@ -13,6 +13,7 @@ interface VirtualRowsResult {
   visibleRange: [number, number]
   onScroll: () => void
   scrollToRow: (rowAbsIdx: number) => void
+  resetScroll: () => void
 }
 
 export function useVirtualRows({ totalCount, rowHeight, overscan = 5 }: VirtualRowsOptions): VirtualRowsResult {
@@ -23,6 +24,13 @@ export function useVirtualRows({ totalCount, rowHeight, overscan = 5 }: VirtualR
     if (containerRef.current) {
       setScrollTop(containerRef.current.scrollTop)
     }
+  }, [])
+
+  const resetScroll = useCallback(() => {
+    if (containerRef.current) {
+      containerRef.current.scrollTop = 0
+    }
+    setScrollTop(0)
   }, [])
 
   const scrollToRow = useCallback(
@@ -55,5 +63,5 @@ export function useVirtualRows({ totalCount, rowHeight, overscan = 5 }: VirtualR
   const offsetTop = start * rowHeight
   const offsetBottom = Math.max(0, (totalCount - 1 - end) * rowHeight)
 
-  return { containerRef, offsetTop, offsetBottom, visibleRange, onScroll, scrollToRow }
+  return { containerRef, offsetTop, offsetBottom, visibleRange, onScroll, scrollToRow, resetScroll }
 }
