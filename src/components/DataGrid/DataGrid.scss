@@ -114,6 +114,11 @@
     border-left: 1px solid var(--grid-border-color);
   }
 
+  &__thead tr .datagrid__th.after-fixed-left,
+  &__thead tr .datagrid__th.fixed-right-first {
+    border-left: none;
+  }
+
   &__th {
     // 각 th 셀도 sticky — thead 와 이중 적용으로 모든 브라우저에서 안정적으로 body 위에 렌더
     position: sticky;
@@ -174,6 +179,26 @@
     }
     &.fixed-right {
       right: var(--sticky-right, 0);
+    }
+
+    &.fixed-left-last::after,
+    &.fixed-right-first::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--grid-border-color);
+      content: '';
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    &.fixed-left-last::after {
+      right: 0;
+    }
+
+    &.fixed-right-first::before {
+      left: 0;
     }
 
     &.filter-active.fixed-left,
@@ -244,6 +269,11 @@
 
   &__tbody tr .datagrid__td + .datagrid__td {
     border-left: 1px solid var(--grid-border-color);
+  }
+
+  &__tbody tr .datagrid__td.after-fixed-left,
+  &__tbody tr .datagrid__td.fixed-right-first {
+    border-left: none;
   }
 
   &__tr {
@@ -347,6 +377,26 @@
     }
     &.fixed-right {
       right: var(--sticky-right, 0);
+    }
+
+    &.fixed-left-last::after,
+    &.fixed-right-first::before {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--grid-border-color);
+      content: '';
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    &.fixed-left-last::after {
+      right: 0;
+    }
+
+    &.fixed-right-first::before {
+      left: 0;
     }
 
     // 편집 가능한 셀 (현재 편집 중이 아닌 상태)

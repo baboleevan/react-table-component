@@ -643,6 +643,24 @@ export function DataGrid<T = Record<string, unknown>>({
   const effectiveColumns = useMemo(() => filterColumnsTree(columns), [columns])
   const leafColumns = useMemo(() => getLeafColumns(effectiveColumns), [effectiveColumns])
   const resolvedColumns = useMemo(() => resolveFixedOffsets(leafColumns), [leafColumns])
+  const fixedBoundaryColumnKeys = useMemo(() => {
+    let lastLeft: string | null = null
+    let afterLastLeft: string | null = null
+    let firstRight: string | null = null
+
+    for (let i = 0; i < resolvedColumns.length; i += 1) {
+      const col = resolvedColumns[i]
+      if (col.fixed === 'left') lastLeft = col.key
+      if (col.fixed === 'right' && firstRight === null) firstRight = col.key
+    }
+
+    if (lastLeft !== null) {
+      const lastLeftIndex = resolvedColumns.findIndex((col) => col.key === lastLeft)
+      afterLastLeft = resolvedColumns[lastLeftIndex + 1]?.key ?? null
+    }
+
+    return { lastLeft, afterLastLeft, firstRight }
+  }, [resolvedColumns])
 
   // 트리/확장처럼 index를 알기 어려운 구간에서 사용하는 내부 자동 키
   const internalObjectKeyRef = useRef(new WeakMap<object, string>())
@@ -2170,6 +2188,9 @@ export function DataGrid<T = Record<string, unknown>>({
                     isLeaf && col.sorter ? 'sortable' : '',
                     isLeaf && isCurrentSort && currentOrder ? 'sorted' : '',
                     isLeaf && col.fixed ? `fixed-${col.fixed}` : '',
+                    isLeaf && fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
+                    isLeaf && fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
+                    isLeaf && fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
                     !isLeaf ? 'group-header' : '',
                     isLeaf && col.resizable !== false ? 'resizable' : '',
                   ]
@@ -2441,6 +2462,9 @@ export function DataGrid<T = Record<string, unknown>>({
                       col.align ? `align-${col.align}` : '',
                       col.ellipsis ? 'ellipsis' : '',
                       col.fixed ? `fixed-${col.fixed}` : '',
+                      fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
+                      fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
+                      fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
                       isEditing ? 'editing' : '',
                       editableForRow && !isEditing ? 'editable' : '',
                       isActiveCell && !isEditing ? 'active-cell' : '',

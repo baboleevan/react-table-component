@@ -238,6 +238,23 @@ describe('DataGrid', () => {
     expect(th).toHaveAttribute('aria-sort', 'none')
   })
 
+  it('marks the last left fixed column so its boundary border remains visible', () => {
+    type ThreeCol = { id: number; a: string; b: string; c: string }
+    const cols: ColumnType<ThreeCol>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a', fixed: 'left', width: 80 },
+      { key: 'b', title: 'B', dataIndex: 'b', fixed: 'left', width: 80 },
+      { key: 'c', title: 'C', dataIndex: 'c', width: 80 },
+    ]
+
+    render(<DataGrid<ThreeCol> rowKey="id" columns={cols} dataSource={[{ id: 1, a: 'x', b: 'y', c: 'z' }]} />)
+
+    expect(screen.getByText('x').closest('td')).not.toHaveClass('fixed-left-last')
+    expect(screen.getByText('y').closest('td')).toHaveClass('fixed-left-last')
+    expect(screen.getByText('z').closest('td')).toHaveClass('after-fixed-left')
+    expect(screen.getByRole('columnheader', { name: 'B' })).toHaveClass('fixed-left-last')
+    expect(screen.getByRole('columnheader', { name: 'C' })).toHaveClass('after-fixed-left')
+  })
+
   it('copyToClipboard copies page as TSV', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
