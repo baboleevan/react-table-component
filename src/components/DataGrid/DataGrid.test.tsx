@@ -27,6 +27,43 @@ describe('DataGrid', () => {
     expect(screen.getByText('No rows')).toBeInTheDocument()
   })
 
+  it('does not toggle clickRowToSelect when clicking an inline editor control', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const editableCol: ColumnType<Row> = {
+      key: 'name',
+      title: '이름',
+      dataIndex: 'name',
+      editable: true,
+      renderEditor: (value, _r, _i, onCommit) => (
+        <input
+          className="test-editor"
+          defaultValue={String(value ?? '')}
+          onChange={(e) => onCommit(e.target.value)}
+        />
+      ),
+    }
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[{ key: 'id', title: 'ID', dataIndex: 'id', width: 70 }, editableCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        editMode="inline"
+        rowSelection={{ type: 'checkbox', selectedRowKeys: [], onChange, clickRowToSelect: true }}
+      />,
+    )
+
+    const editor = screen.getAllByRole('textbox')[0]!
+    await user.click(editor)
+    expect(onChange).not.toHaveBeenCalled()
+
+    await user.click(screen.getByText('2'))
+    expect(onChange).toHaveBeenCalled()
+  })
+
   it('calls rowSelection.onChange when a data row checkbox is toggled', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()

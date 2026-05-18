@@ -151,6 +151,16 @@ const DEFAULT_ROW_HEIGHT = 46
 const VIRTUAL_THRESHOLD = 100
 const ROW_OPS_DELETE_COL_WIDTH = 56
 
+/** clickRowToSelect 시 행 클릭으로 선택하지 않을 대상 (에디터·폼 컨트롤) */
+const ROW_SELECT_IGNORE_SELECTOR =
+  'input, select, textarea, button, a, [contenteditable="true"], .datagrid__editor, label'
+
+function shouldIgnoreRowSelectionClick(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false
+  if (target.closest(ROW_SELECT_IGNORE_SELECTOR)) return true
+  return Boolean(target.closest('.datagrid__td.editing, .datagrid__td.inline-editing'))
+}
+
 /** Tab 이동용: 읽기 순서로 한 칸 오른쪽 (행 끝이면 다음 행 첫 칸) */
 function stepCellRight(
   row: number,
@@ -2367,7 +2377,7 @@ export function DataGrid<T = Record<string, unknown>>({
                     if (expandable?.expandRowByClick && rowExpandable && (hasExpandRender || showTreeToggle)) {
                       toggleRowExpand(rk, record, isExpanded)
                     }
-                    if (rowSelection?.clickRowToSelect) {
+                    if (rowSelection?.clickRowToSelect && !shouldIgnoreRowSelectionClick(e.target)) {
                       const disabled = rowSelection.getCheckboxProps?.(record)?.disabled
                       if (!disabled) handleSelectRow(record, absIdx, !isSelected)
                     }
@@ -2582,12 +2592,14 @@ export function DataGrid<T = Record<string, unknown>>({
                                 onFocusedRowChange?.(record, absIdx)
                                 if (editableForRow) setEditCell({ rowKey: rk, colKey: col.key })
                               }
-                            : editMode !== 'inline'
-                              ? () => {
-                                  setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
-                                  setFocusedKey(rk)
-                                }
-                              : undefined
+                            : isEditing
+                              ? (e) => e.stopPropagation()
+                              : editMode !== 'inline'
+                                ? () => {
+                                    setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
+                                    setFocusedKey(rk)
+                                  }
+                                : undefined
                         }
                         onDoubleClick={
                           editMode === 'dblclick'
