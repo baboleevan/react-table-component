@@ -12,6 +12,7 @@ export type {
   ColumnType,
   RowOperationsConfig,
   RowSelectionConfig,
+  RowSelectionCheckboxProps,
   PaginationConfig,
   ScrollConfig,
   SortOrder,

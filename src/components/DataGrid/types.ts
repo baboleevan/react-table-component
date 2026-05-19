@@ -357,11 +357,22 @@ export interface RowOperationsConfig<T = Record<string, unknown>> {
 // ──────────────────────────────────────────────
 // 행 선택
 // ──────────────────────────────────────────────
+export interface RowSelectionCheckboxProps {
+  /** true이면 해당 행의 체크박스/라디오를 비활성화하고 선택할 수 없습니다 */
+  disabled?: boolean
+}
+
 export interface RowSelectionConfig<T = Record<string, unknown>> {
   type?: 'checkbox' | 'radio'
   selectedRowKeys?: (string | number)[]
   onChange?: (selectedRowKeys: (string | number)[], selectedRows: T[]) => void
-  getCheckboxProps?: (record: T) => { disabled?: boolean }
+  /**
+   * 행별 체크박스/라디오 속성. `disabled: true`이면 선택 불가(전체 선택·행 클릭 선택에도 제외).
+   *
+   * @example
+   * getCheckboxProps: (record) => ({ disabled: record.status === '휴직' })
+   */
+  getCheckboxProps?: (record: T) => RowSelectionCheckboxProps
   onSelect?: (record: T, selected: boolean, selectedRows: T[]) => void
   onSelectAll?: (selected: boolean, selectedRows: T[], changeRows: T[]) => void
   /**

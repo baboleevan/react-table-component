@@ -41,6 +41,23 @@ const CHECKBOX_CODE = `const [selectedKeys, setSelectedKeys] = useState<(string 
   pagination={{ pageSize: 50, showSizeChanger: true }}
 />`
 
+const DISABLED_CODE = `const [selectedKeys, setSelectedKeys] = useState<(string | number)[]>([])
+
+<DataGrid
+  dataSource={EMPLOYEE_DATA}
+  columns={columns}
+  rowKey="id"
+  rowSelection={{
+    type: 'checkbox',
+    selectedRowKeys: selectedKeys,
+    onChange: (keys) => setSelectedKeys(keys),
+    // 휴직·수습 행은 선택 불가
+    getCheckboxProps: (record) => ({
+      disabled: record.status === '휴직' || record.status === '수습',
+    }),
+  }}
+/>`
+
 const RADIO_CODE = `const [selectedKey, setSelectedKey] = useState<string | number | null>(null)
 
 <DataGrid
@@ -57,6 +74,7 @@ const RADIO_CODE = `const [selectedKey, setSelectedKey] = useState<string | numb
 
 export function SelectionDemo() {
   const [selectedKeys, setSelectedKeys] = useState<(string | number)[]>([])
+  const [disabledDemoKeys, setDisabledDemoKeys] = useState<(string | number)[]>([])
   const [radioKey, setRadioKey] = useState<string | number | null>(null)
 
   return (
@@ -105,6 +123,37 @@ export function SelectionDemo() {
               pageSize: 50,
               showSizeChanger: true,
               pageSizeOptions: [50, 100, 200],
+              showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건`,
+            }}
+          />
+        </div>
+      </DemoBlock>
+
+      <DemoBlock
+        title="선택 비활성화 (getCheckboxProps)"
+        description="getCheckboxProps에서 disabled: true를 반환하면 해당 행은 선택할 수 없습니다. 전체 선택·행 클릭 선택에서도 제외됩니다."
+        code={DISABLED_CODE}
+      >
+        <p style={{ margin: '0 0 10px', fontSize: 13, color: 'rgba(0,0,0,.45)' }}>
+          선택됨: <strong>{disabledDemoKeys.length}</strong>건 · 비활성(휴직·수습) 행은 체크 불가
+        </p>
+        <div style={{ height: 460 }}>
+          <DataGrid<Employee>
+            dataSource={EMPLOYEE_DATA}
+            columns={columns}
+            rowKey="id"
+            rowSelection={{
+              type: 'checkbox',
+              selectedRowKeys: disabledDemoKeys,
+              onChange: (keys) => setDisabledDemoKeys(keys),
+              getCheckboxProps: (record) => ({
+                disabled: record.status === '휴직' || record.status === '수습',
+              }),
+            }}
+            pagination={{
+              pageSize: 50,
+              showSizeChanger: true,
+              pageSizeOptions: [50, 100],
               showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건`,
             }}
           />

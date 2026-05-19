@@ -161,6 +161,13 @@ function shouldIgnoreRowSelectionClick(target: EventTarget | null): boolean {
   return Boolean(target.closest('.datagrid__td.editing, .datagrid__td.inline-editing'))
 }
 
+function isRowSelectionDisabled<T>(
+  record: T,
+  rowSelection: { getCheckboxProps?: (record: T) => { disabled?: boolean } } | undefined,
+): boolean {
+  return Boolean(rowSelection?.getCheckboxProps?.(record)?.disabled)
+}
+
 /** Tab 이동용: 읽기 순서로 한 칸 오른쪽 (행 끝이면 다음 행 첫 칸) */
 function stepCellRight(
   row: number,
@@ -1648,8 +1655,7 @@ export function DataGrid<T = Record<string, unknown>>({
       const changeRows: T[] = []
       for (let i = 0; i < pagedData.length; i++) {
         const { record: r, rowKey: key } = pagedData[i]
-        const disabled = rowSelection.getCheckboxProps?.(r)?.disabled
-        if (disabled) {
+        if (isRowSelectionDisabled(r, rowSelection)) {
           if (selectedKeys.has(key)) {
             newKeys.push(key)
             newRows.push(r)
@@ -1671,6 +1677,7 @@ export function DataGrid<T = Record<string, unknown>>({
   const handleSelectRow = useCallback(
     (record: T, index: number, checked: boolean) => {
       if (!rowSelection) return
+      if (isRowSelectionDisabled(record, rowSelection)) return
       const key = getRowKey(record, rowKey, index)
       const type = rowSelection.type ?? 'checkbox'
       let newKeys: (string | number)[]
@@ -2075,7 +2082,7 @@ export function DataGrid<T = Record<string, unknown>>({
     _selectedEnabledCount = 0
   for (let i = 0; i < pagedData.length; i++) {
     const { record: pr, rowKey: pk } = pagedData[i]
-    if (rowSelection?.getCheckboxProps?.(pr)?.disabled) continue
+    if (isRowSelectionDisabled(pr, rowSelection)) continue
     _enabledCount++
     if (selectedKeys.has(pk)) _selectedEnabledCount++
   }
@@ -2335,6 +2342,7 @@ export function DataGrid<T = Record<string, unknown>>({
               const { record, depth, rowKey: rk, hasTreeChildren } = pack
               const absIdx = visibleStartIndex + relIdx
               const isSelected = selectedKeys.has(rk)
+              const isSelectionDisabled = isRowSelectionDisabled(record, rowSelection)
               const isFocused = focusedKey === rk
               const isStripe = striped && absIdx % 2 === 1
               const rowExtraProps = onRow?.(record, absIdx) ?? {}
@@ -2346,7 +2354,8 @@ export function DataGrid<T = Record<string, unknown>>({
                 isFocused ? 'focused' : '',
                 isSelected ? 'selected' : '',
                 isStripe ? 'stripe' : '',
-                rowSelection?.clickRowToSelect ? 'clickable' : '',
+                rowSelection?.clickRowToSelect && !isSelectionDisabled ? 'clickable' : '',
+                isSelectionDisabled ? 'selection-disabled' : '',
                 customRowClass,
                 rowExtraProps.className,
               ]
@@ -2377,9 +2386,12 @@ export function DataGrid<T = Record<string, unknown>>({
                     if (expandable?.expandRowByClick && rowExpandable && (hasExpandRender || showTreeToggle)) {
                       toggleRowExpand(rk, record, isExpanded)
                     }
-                    if (rowSelection?.clickRowToSelect && !shouldIgnoreRowSelectionClick(e.target)) {
-                      const disabled = rowSelection.getCheckboxProps?.(record)?.disabled
-                      if (!disabled) handleSelectRow(record, absIdx, !isSelected)
+                    if (
+                      rowSelection?.clickRowToSelect &&
+                      !isSelectionDisabled &&
+                      !shouldIgnoreRowSelectionClick(e.target)
+                    ) {
+                      handleSelectRow(record, absIdx, !isSelected)
                     }
                     rowExtraProps.onClick?.(e)
                   }}
@@ -2412,7 +2424,7 @@ export function DataGrid<T = Record<string, unknown>>({
                         type={rowSelection.type ?? 'checkbox'}
                         tabIndex={-1}
                         checked={isSelected}
-                        disabled={rowSelection.getCheckboxProps?.(record)?.disabled}
+                        disabled={isSelectionDisabled}
                         onChange={(e) => handleSelectRow(record, absIdx, e.target.checked)}
                         onClick={(e) => e.stopPropagation()}
                       />

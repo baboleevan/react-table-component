@@ -64,6 +64,35 @@ describe('DataGrid', () => {
     expect(onChange).toHaveBeenCalled()
   })
 
+  it('disables row selection when getCheckboxProps returns disabled', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        rowSelection={{
+          type: 'checkbox',
+          selectedRowKeys: [],
+          onChange,
+          getCheckboxProps: (record) => ({ disabled: record.id === 2 }),
+        }}
+      />,
+    )
+
+    const checks = screen.getAllByRole('checkbox')
+    expect(checks[2]).toBeDisabled()
+    await user.click(checks[2]!)
+    expect(onChange).not.toHaveBeenCalled()
+
+    await user.click(checks[1]!)
+    expect(onChange).toHaveBeenCalled()
+  })
+
   it('calls rowSelection.onChange when a data row checkbox is toggled', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
