@@ -381,6 +381,11 @@ export interface RowSelectionConfig<T = Record<string, unknown>> {
    * @default false
    */
   clickRowToSelect?: boolean
+  /**
+   * 선택 열 고정. `'left'`이면 가로 스크롤 시 확장 열 다음에 선택 열이 고정됩니다.
+   * `fixed: 'left'` 데이터 컬럼의 sticky 오프셋에 선택 열 너비가 자동 반영됩니다.
+   */
+  fixed?: 'left'
 }
 
 // ──────────────────────────────────────────────

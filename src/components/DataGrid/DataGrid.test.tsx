@@ -304,6 +304,29 @@ describe('DataGrid', () => {
     expect(th).toHaveAttribute('aria-sort', 'none')
   })
 
+  it('fixes row selection column to the left and offsets data fixed columns', () => {
+    type Row3 = { id: number; a: string; b: string }
+    const cols: ColumnType<Row3>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a', fixed: 'left', width: 80 },
+      { key: 'b', title: 'B', dataIndex: 'b', width: 200 },
+    ]
+    const onChange = vi.fn()
+
+    render(
+      <DataGrid<Row3>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, a: 'x', b: 'y' }]}
+        scroll={{ x: 400 }}
+        rowSelection={{ type: 'checkbox', selectedRowKeys: [], onChange, fixed: 'left' }}
+      />,
+    )
+
+    const rowCheckbox = screen.getAllByRole('checkbox')[1]!
+    expect(rowCheckbox.closest('td')).toHaveClass('fixed-left')
+    expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '40px' })
+  })
+
   it('marks the last left fixed column so its boundary border remains visible', () => {
     type ThreeCol = { id: number; a: string; b: string; c: string }
     const cols: ColumnType<ThreeCol>[] = [

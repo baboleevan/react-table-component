@@ -92,6 +92,18 @@ function resolveFixedOffsets<T>(columns: ColumnType<T>[]): InternalColumnType<T>
   return result
 }
 
+function shiftLeftFixedColumnOffsets<T>(columns: InternalColumnType<T>[], prefix: number): InternalColumnType<T>[] {
+  if (prefix <= 0) return columns
+  return columns.map((col) =>
+    col.fixed === 'left' ? { ...col, _left: (col._left ?? 0) + prefix } : col,
+  )
+}
+
+function getExpandColumnWidth<T>(expandable: DataGridProps<T>['expandable'], isTreeMode: boolean): number {
+  const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
+  return hasExpandRender || isTreeMode ? EXPAND_COL_WIDTH : 0
+}
+
 /** 적용 중인 필터가 있는지(텍스트 모드는 공백 제외 첫 값 기준) */
 function isColumnFilterActive<T>(col: ColumnType<T>, selected: Key[] | null | undefined): boolean {
   if (selected == null || selected.length === 0) return false
@@ -150,6 +162,8 @@ function buildHeaderRows<T>(
 const DEFAULT_ROW_HEIGHT = 46
 const VIRTUAL_THRESHOLD = 100
 const ROW_OPS_DELETE_COL_WIDTH = 56
+const ROW_SELECTION_COL_WIDTH = 40
+const EXPAND_COL_WIDTH = 40
 
 /** clickRowToSelect 시 행 클릭으로 선택하지 않을 대상 (에디터·폼 컨트롤) */
 const ROW_SELECT_IGNORE_SELECTOR =
@@ -659,7 +673,20 @@ export function DataGrid<T = Record<string, unknown>>({
   useGridBreakpoint()
   const effectiveColumns = useMemo(() => filterColumnsTree(columns), [columns])
   const leafColumns = useMemo(() => getLeafColumns(effectiveColumns), [effectiveColumns])
-  const resolvedColumns = useMemo(() => resolveFixedOffsets(leafColumns), [leafColumns])
+  const resolvedColumns = useMemo(() => {
+    const cols = resolveFixedOffsets(leafColumns)
+    if (rowSelection?.fixed !== 'left') return cols
+    const isTree =
+      Boolean(expandable?.childrenColumnName) || Boolean(expandable?.treeDataFromFlatList)
+    const prefix = getExpandColumnWidth(expandable, isTree) + ROW_SELECTION_COL_WIDTH
+    return shiftLeftFixedColumnOffsets(cols, prefix)
+  }, [
+    leafColumns,
+    rowSelection?.fixed,
+    expandable?.childrenColumnName,
+    expandable?.treeDataFromFlatList,
+    expandable?.expandedRowRender,
+  ])
   const fixedBoundaryColumnKeys = useMemo(() => {
     let lastLeft: string | null = null
     let afterLastLeft: string | null = null
@@ -970,7 +997,11 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
   const hasExpandCol = hasExpandRender || isTreeMode
-  const expandColWidth = hasExpandCol ? 40 : 0
+  const expandColWidth = getExpandColumnWidth(expandable, isTreeMode)
+  const isSelectionFixedLeft = rowSelection?.fixed === 'left'
+  const hasFixedLeftDataColumns = resolvedColumns.some((col) => col.fixed === 'left')
+  const isSelectionFixedLeftLast = isSelectionFixedLeft && !hasFixedLeftDataColumns
+  const selectionStickyLeft = isSelectionFixedLeft ? expandColWidth : undefined
 
   // ── 가상화 ───────────────────────────
   const shouldVirtualize =
@@ -1181,7 +1212,7 @@ export function DataGrid<T = Record<string, unknown>>({
       if (!col || col.fixed) return // 고정 컬럼은 항상 보임
 
       const container = containerRef.current
-      const selWidth = rowSelection ? 40 : 0
+      const selWidth = rowSelection ? ROW_SELECTION_COL_WIDTH : 0
 
       // 해당 컬럼의 절대 좌측 오프셋 계산
       let absLeft = selWidth + expandColWidth
@@ -2147,7 +2178,7 @@ export function DataGrid<T = Record<string, unknown>>({
         >
           <colgroup>
             {hasExpandCol && <col style={{ width: expandColWidth }} />}
-            {rowSelection && <col style={{ width: 40 }} />}
+            {rowSelection && <col style={{ width: ROW_SELECTION_COL_WIDTH }} />}
             {resolvedColumns.map((col) => (
               <col key={col.key} style={{ width: columnWidths[col.key] ?? col.width }} />
             ))}
@@ -2172,11 +2203,21 @@ export function DataGrid<T = Record<string, unknown>>({
                   )}
                   {rowIdx === 0 && rowSelection && (
                   <th
-                    className="datagrid__th datagrid__selection-col"
+                    className={[
+                      'datagrid__th',
+                      'datagrid__selection-col',
+                      isSelectionFixedLeft ? 'fixed-left' : '',
+                      isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
                     rowSpan={maxDepth > 1 ? maxDepth : undefined}
                     style={
                       {
                         '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                        ...(selectionStickyLeft !== undefined
+                          ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
+                          : {}),
                       } as CSSProperties
                     }
                   >
@@ -2419,7 +2460,21 @@ export function DataGrid<T = Record<string, unknown>>({
                     </td>
                   )}
                   {rowSelection && (
-                    <td className="datagrid__td datagrid__selection-col">
+                    <td
+                      className={[
+                        'datagrid__td',
+                        'datagrid__selection-col',
+                        isSelectionFixedLeft ? 'fixed-left' : '',
+                        isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      style={
+                        selectionStickyLeft !== undefined
+                          ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
+                          : undefined
+                      }
+                    >
                       <input
                         type={rowSelection.type ?? 'checkbox'}
                         tabIndex={-1}

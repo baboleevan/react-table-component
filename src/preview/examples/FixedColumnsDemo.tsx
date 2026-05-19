@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType } from '@/components/DataGrid'
 import { EMPLOYEE_DATA, type Employee } from '@/preview/mockData'
@@ -38,6 +39,26 @@ const columns: ColumnType<Employee>[] = [
   { key: 'memo', title: '메모', dataIndex: 'memo', width: 150, ellipsis: true, fixed: 'right' },
 ]
 
+const CODE_WITH_SELECTION = `const columns: ColumnType<Employee>[] = [
+  { key: 'id', title: 'ID', dataIndex: 'id', width: 70, fixed: 'left' },
+  { key: 'name', title: '이름', dataIndex: 'name', width: 100, fixed: 'left' },
+  // ... 중간 컬럼 ...
+  { key: 'status', title: '상태', dataIndex: 'status', width: 80, fixed: 'right' },
+]
+
+<DataGrid
+  dataSource={EMPLOYEE_DATA}
+  columns={columns}
+  rowKey="id"
+  scroll={{ x: 2400 }}
+  rowSelection={{
+    type: 'checkbox',
+    selectedRowKeys,
+    onChange: (keys) => setSelectedRowKeys(keys),
+    fixed: 'left',   // 선택 열도 좌측 고정
+  }}
+/>`
+
 const CODE = `const columns: ColumnType<Employee>[] = [
   { key: 'id',     title: 'ID',   dataIndex: 'id',     width: 70,  fixed: 'left' },
   { key: 'name',   title: '이름', dataIndex: 'name',   width: 100, fixed: 'left' },
@@ -54,6 +75,8 @@ const CODE = `const columns: ColumnType<Employee>[] = [
 />`
 
 export function FixedColumnsDemo() {
+  const [selectedKeys, setSelectedKeys] = useState<(string | number)[]>([])
+
   return (
     <div className="demo-page">
       <h1 className="demo-page__title">고정 컬럼 (Fixed Columns)</h1>
@@ -78,6 +101,28 @@ export function FixedColumnsDemo() {
               pageSizeOptions: [50, 100, 200],
               showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건`,
             }}
+          />
+        </div>
+      </DemoBlock>
+
+      <DemoBlock
+        title="선택 열 좌측 고정 (rowSelection.fixed)"
+        description="체크박스 열을 데이터 고정 컬럼과 함께 좌측에 고정합니다."
+        code={CODE_WITH_SELECTION}
+      >
+        <div style={{ height: 520 }}>
+          <DataGrid<Employee>
+            dataSource={EMPLOYEE_DATA}
+            columns={columns}
+            rowKey="id"
+            scroll={{ x: 2400 }}
+            rowSelection={{
+              type: 'checkbox',
+              selectedRowKeys: selectedKeys,
+              onChange: (keys) => setSelectedKeys(keys),
+              fixed: 'left',
+            }}
+            pagination={{ pageSize: 50, showTotal: (total, [s, e]) => `${s}-${e} / 총 ${total}건` }}
           />
         </div>
       </DemoBlock>
