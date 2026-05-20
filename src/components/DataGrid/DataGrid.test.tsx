@@ -344,6 +344,33 @@ describe('DataGrid', () => {
     expect(screen.getByRole('columnheader', { name: 'C' })).toHaveClass('after-fixed-left')
   })
 
+  it('renders grouped columns as multiple header rows with group-header class', () => {
+    const cols: ColumnType<Row>[] = [
+      {
+        key: 'group',
+        title: '그룹',
+        children: [
+          { key: 'a', title: 'A', dataIndex: 'name' },
+          { key: 'b', title: 'B', dataIndex: 'name' },
+        ],
+      },
+      { key: 'solo', title: '단일', dataIndex: 'name' },
+    ]
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, name: 'x' }]}
+        pagination={false}
+      />,
+    )
+
+    expect(document.querySelectorAll('.datagrid__thead tr')).toHaveLength(2)
+    expect(screen.getByRole('columnheader', { name: '그룹' })).toHaveClass('group-header')
+    expect(screen.getByRole('columnheader', { name: '단일' })).toHaveAttribute('rowspan', '2')
+  })
+
   it('Ctrl+C copies grid TSV when no cell text is selected', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })

@@ -212,11 +212,15 @@
       box-shadow: inset 0 -3px 0 var(--grid-filter-active-color, #1677ff);
     }
 
-    // 그룹 헤더
+    // 그룹 헤더 — 제목 줄바꿈 시 같은 행 내 th 높이 불일치 방지
     &.group-header {
       text-align: center;
       background: var(--grid-header-bg);
       border-bottom: 1px solid var(--grid-border-color);
+
+      .datagrid__th-inner {
+        flex-wrap: nowrap;
+      }
     }
 
     // 리사이즈 핸들 부모
