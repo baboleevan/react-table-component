@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { createRef } from 'react'
@@ -342,6 +342,65 @@ describe('DataGrid', () => {
     expect(screen.getByText('z').closest('td')).toHaveClass('after-fixed-left')
     expect(screen.getByRole('columnheader', { name: 'B' })).toHaveClass('fixed-left-last')
     expect(screen.getByRole('columnheader', { name: 'C' })).toHaveClass('after-fixed-left')
+  })
+
+  it('Ctrl+C copies grid TSV when no cell text is selected', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[{ id: 1, name: 'Alpha' }]}
+        pagination={false}
+      />,
+    )
+
+    const scroll = document.querySelector('.datagrid__scroll')
+    expect(scroll).toBeTruthy()
+    fireEvent.keyDown(scroll!, { key: 'c', ctrlKey: true })
+
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalled()
+    })
+    const payload = writeText.mock.calls[0]![0] as string
+    expect(payload).toContain('Alpha')
+
+    vi.unstubAllGlobals()
+  })
+
+  it('Ctrl+C keeps browser copy when cell text is selected', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[nameCol]}
+        dataSource={[{ id: 1, name: 'Alpha' }]}
+        pagination={false}
+      />,
+    )
+
+    const scroll = document.querySelector('.datagrid__scroll') as HTMLElement
+    const cellText = screen.getByText('Alpha')
+    const range = document.createRange()
+    range.selectNodeContents(cellText)
+    const getRangeAt = () => range
+    vi.spyOn(window, 'getSelection').mockReturnValue({
+      isCollapsed: false,
+      rangeCount: 1,
+      toString: () => 'Alp',
+      getRangeAt,
+    } as unknown as Selection)
+
+    fireEvent.keyDown(scroll, { key: 'c', ctrlKey: true })
+
+    expect(writeText).not.toHaveBeenCalled()
+
+    vi.unstubAllGlobals()
+    vi.restoreAllMocks()
   })
 
   it('copyToClipboard copies page as TSV', async () => {

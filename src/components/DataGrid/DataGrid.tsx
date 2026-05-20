@@ -187,6 +187,16 @@ function shouldIgnoreRowSelectionClick(target: EventTarget | null): boolean {
   return Boolean(target.closest('.datagrid__td.editing, .datagrid__td.inline-editing'))
 }
 
+/** 셀 텍스트 드래그 선택 시 Ctrl+C는 브라우저 기본 복사 유지 */
+function hasUserTextSelectionIn(container: HTMLElement | null): boolean {
+  if (!container || typeof window.getSelection !== 'function') return false
+  const sel = window.getSelection()
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false
+  if (!sel.toString()) return false
+  const range = sel.getRangeAt(0)
+  return container.contains(range.commonAncestorContainer)
+}
+
 function isRowSelectionDisabled<T>(
   record: T,
   rowSelection: { getCheckboxProps?: (record: T) => { disabled?: boolean } } | undefined,
@@ -1435,10 +1445,12 @@ export function DataGrid<T = Record<string, unknown>>({
         return
       }
 
-      // ── 클립보드: Ctrl/Cmd + C (입력 포커스가 있으면 브라우저 기본 복사 유지) ──
+      // ── 클립보드: Ctrl/Cmd + C (에디터·셀 텍스트 선택 시 브라우저 기본 복사 유지) ──
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isEditorFocused) {
-        e.preventDefault()
-        void copyToClipboard({ scope: 'auto' })
+        if (!hasUserTextSelectionIn(containerRef.current)) {
+          e.preventDefault()
+          void copyToClipboard({ scope: 'auto' })
+        }
         return
       }
 
