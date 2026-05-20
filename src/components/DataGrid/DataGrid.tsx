@@ -104,6 +104,18 @@ function getExpandColumnWidth<T>(expandable: DataGridProps<T>['expandable'], isT
   return hasExpandRender || isTreeMode ? EXPAND_COL_WIDTH : 0
 }
 
+/** 그룹 헤더 2행째 th의 sticky-top 오프셋 — tr offsetHeight 기준 */
+function measureTheadRowTopOffsets(thead: HTMLTableSectionElement): number[] {
+  const rows = Array.from(thead.querySelectorAll('tr'))
+  let cumulative = 0
+  const offsets: number[] = []
+  for (const row of rows) {
+    offsets.push(cumulative)
+    cumulative += row.offsetHeight
+  }
+  return offsets
+}
+
 /** 적용 중인 필터가 있는지(텍스트 모드는 공백 제외 첫 값 기준) */
 function isColumnFilterActive<T>(col: ColumnType<T>, selected: Key[] | null | undefined): boolean {
   if (selected == null || selected.length === 0) return false
@@ -1983,20 +1995,53 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 그룹헤더 th sticky-top 오프셋 측정 ───────────────
   // headerRows 선언 이후에 배치해야 deps 참조 가능
-  useLayoutEffect(() => {
-    if (!theadRef.current) return
-    const rows = Array.from(theadRef.current.querySelectorAll('tr'))
-    let cumulative = 0
-    const newOffsets: number[] = []
-    for (const row of rows) {
-      newOffsets.push(cumulative)
-      cumulative += row.getBoundingClientRect().height
-    }
-    // 값이 동일하면 불필요한 재렌더 방지
+  const syncThTopOffsets = useCallback(() => {
+    const thead = theadRef.current
+    if (!thead) return
+    const newOffsets = measureTheadRowTopOffsets(thead)
     setThTopOffsets((prev) =>
       prev.length === newOffsets.length && prev.every((v, i) => v === newOffsets[i]) ? prev : newOffsets,
     )
-  }, [headerRows, hasRowDelete, hasDeleteSelected, rowSelection, hasExpandCol])
+  }, [])
+
+  useLayoutEffect(() => {
+    syncThTopOffsets()
+
+    const thead = theadRef.current
+    const scrollEl = containerRef.current
+    if (!thead) return
+
+    const ro = new ResizeObserver(() => {
+      syncThTopOffsets()
+    })
+    ro.observe(thead)
+    if (scrollEl) ro.observe(scrollEl)
+
+    // API 조회 직후 레이아웃·스크롤바 반영 후 한 번 더 측정 (고정/스크롤 th 높이 불일치 방지)
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        syncThTopOffsets()
+      })
+    })
+
+    return () => {
+      ro.disconnect()
+      cancelAnimationFrame(raf1)
+      cancelAnimationFrame(raf2)
+    }
+  }, [
+    syncThTopOffsets,
+    headerRows,
+    hasRowDelete,
+    hasDeleteSelected,
+    rowSelection,
+    hasExpandCol,
+    loading,
+    dataSource,
+    columnWidths,
+    resolvedColumns.length,
+  ])
 
   const rootRef = useRef<HTMLDivElement>(null)
   const stickyOffset = typeof sticky === 'object' && sticky ? (sticky.offsetHeader ?? 0) : 0
