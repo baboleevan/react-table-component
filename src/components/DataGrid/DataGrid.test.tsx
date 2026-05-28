@@ -136,6 +136,34 @@ describe('DataGrid', () => {
     expect(onChange).toHaveBeenCalled()
   })
 
+  it('invokes onChange when a sortable grouped header is clicked', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    const cols: ColumnType<Row>[] = [
+      {
+        key: 'group',
+        title: '그룹',
+        dataIndex: 'name',
+        sorter: true,
+        children: [{ key: 'name', title: '이름', dataIndex: 'name' }],
+      },
+    ]
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={cols}
+        dataSource={[
+          { id: 1, name: 'Z' },
+          { id: 2, name: 'A' },
+        ]}
+        onChange={onChange}
+      />,
+    )
+
+    await user.click(screen.getByRole('columnheader', { name: /그룹/i }))
+    expect(onChange).toHaveBeenCalled()
+  })
+
   it('applies external cell style from cellStyleResolver', () => {
     render(
       <DataGrid<Row>
