@@ -440,11 +440,7 @@ export interface ExpandableConfig<T = Record<string, unknown>> {
   defaultExpandedRowKeys?: (string | number)[]
   onExpand?: (expanded: boolean, record: T) => void
   onExpandedRowsChange?: (keys: (string | number)[]) => void
-  expandIcon?: (props: {
-    expanded: boolean
-    onExpand: (e?: ReactMouseEvent) => void
-    record: T
-  }) => ReactNode
+  expandIcon?: (props: { expanded: boolean; onExpand: (e?: ReactMouseEvent) => void; record: T }) => ReactNode
   /** 행 클릭 시 확장 토글 (`rowSelection.clickRowToSelect`와 함께 쓰면 이벤트 순서에 유의) */
   expandRowByClick?: boolean
   /** 트리 들여쓰기 (px) */
@@ -461,6 +457,8 @@ export interface ExpandableConfig<T = Record<string, unknown>> {
   }
   /** true면 첫 데이터 컬럼에 depth 단계만큼 세로 점선(트리 가이드)을 그립니다. */
   showTreeLines?: boolean
+  /** 확장/트리 토글 컬럼을 좌측에 고정합니다. */
+  fixed?: 'left'
 }
 
 export interface TableComponents {
@@ -529,9 +527,9 @@ export interface DataGridProps<T = Record<string, unknown>> {
    * 외부에서 특정 셀 스타일을 동적으로 제어합니다.
    * row/column/value 정보를 기반으로 className 또는 style을 반환할 수 있습니다.
    *
-   * **인라인 `style` 병합 우선순위(낮음 → 높음)**  
+   * **인라인 `style` 병합 우선순위(낮음 → 높음)**
    * `cellStyleResolver` → 컬럼 `onCell` → `rowStyleMap.row` → `rowStyleMap.cells[col]` →
-   * `gridRef` 명령형(`setCellStyle` / `setRowStyle` / `setRangeStyle`)  
+   * `gridRef` 명령형(`setCellStyle` / `setRowStyle` / `setRangeStyle`)
    * 레이아웃용 값(들여쓰기, sticky 변수)은 그 위에 다시 덮어씁니다.
    */
   cellStyleResolver?: (params: CellStyleResolverParams<T>) => DataGridCellStyleConfig | undefined

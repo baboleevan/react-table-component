@@ -46,26 +46,107 @@ export function applyMultiSort<T>(
     return (getSorterMultiple(ca) ?? 100) - (getSorterMultiple(cb) ?? 100)
   })
   return [...data].sort((a, b) => {
-    for (const s of orderedStates) {
-      const col = leafColumns.find((c) => c.key === s.columnKey)
-      if (!col?.sorter) continue
-      let cmp = 0
-      if (col.sorter === true) {
-        const va = getRecordValue(a, col.dataIndex, col.key)
-        const vb = getRecordValue(b, col.dataIndex, col.key)
-        if (va === vb) cmp = 0
-        else if (va == null) cmp = 1
-        else if (vb == null) cmp = -1
-        else cmp = va < vb ? -1 : 1
-      } else {
-        const fn = getSorterCompare(col)
-        if (!fn) continue
-        cmp = fn(a, b)
-      }
-      if (cmp !== 0) return s.order === 'ascend' ? cmp : -cmp
-    }
-    return 0
+    return compareBySortStates(a, b, orderedStates, leafColumns)
   })
+}
+
+function compareBySortStates<T>(
+  a: T,
+  b: T,
+  orderedStates: { columnKey: string; order: 'ascend' | 'descend' }[],
+  leafColumns: ColumnType<T>[],
+): number {
+  for (const s of orderedStates) {
+    const col = leafColumns.find((c) => c.key === s.columnKey)
+    if (!col?.sorter) continue
+    let cmp = 0
+    if (col.sorter === true) {
+      const va = getRecordValue(a, col.dataIndex, col.key)
+      const vb = getRecordValue(b, col.dataIndex, col.key)
+      if (va === vb) cmp = 0
+      else if (va == null) cmp = 1
+      else if (vb == null) cmp = -1
+      else cmp = va < vb ? -1 : 1
+    } else {
+      const fn = getSorterCompare(col)
+      if (!fn) continue
+      cmp = fn(a, b)
+    }
+    if (cmp !== 0) return s.order === 'ascend' ? cmp : -cmp
+  }
+  return 0
+}
+
+export function applyTreeSort<T>(
+  data: T[],
+  childrenColumnName: string,
+  sortStates: { columnKey: string; order: 'ascend' | 'descend' }[],
+  leafColumns: ColumnType<T>[],
+): T[] {
+  if (sortStates.length === 0) return data
+  const sorted = applyMultiSort(data, sortStates, leafColumns)
+  return sorted.map((record) => {
+    const children = (record as Record<string, unknown>)[childrenColumnName]
+    if (!Array.isArray(children) || children.length === 0) return record
+    return {
+      ...(record as Record<string, unknown>),
+      [childrenColumnName]: applyTreeSort(children as T[], childrenColumnName, sortStates, leafColumns),
+    } as T
+  })
+}
+
+interface FlatDepthNode<T> {
+  record: T
+  children: FlatDepthNode<T>[]
+}
+
+export function applyFlatDepthTreeSort<T>(
+  data: T[],
+  depthField: string,
+  sortStates: { columnKey: string; order: 'ascend' | 'descend' }[],
+  leafColumns: ColumnType<T>[],
+): T[] {
+  if (sortStates.length === 0 || data.length === 0) return data
+  const depthOf = (record: T) => {
+    const value = (record as Record<string, unknown>)[depthField]
+    const depth = Number(value)
+    return Number.isFinite(depth) ? depth : 0
+  }
+
+  const roots: FlatDepthNode<T>[] = []
+  const stack: { depth: number; node: FlatDepthNode<T> }[] = []
+  for (const record of data) {
+    const depth = depthOf(record)
+    const node: FlatDepthNode<T> = { record, children: [] }
+    while (stack.length > 0 && stack[stack.length - 1]!.depth >= depth) {
+      stack.pop()
+    }
+    const parent = stack[stack.length - 1]?.node
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+    stack.push({ depth, node })
+  }
+
+  const orderedStates = [...sortStates].sort((a, b) => {
+    const ca = leafColumns.find((c) => c.key === a.columnKey)
+    const cb = leafColumns.find((c) => c.key === b.columnKey)
+    return (getSorterMultiple(ca) ?? 100) - (getSorterMultiple(cb) ?? 100)
+  })
+  const sortNodes = (nodes: FlatDepthNode<T>[]) => {
+    nodes.sort((a, b) => compareBySortStates(a.record, b.record, orderedStates, leafColumns))
+    for (const node of nodes) sortNodes(node.children)
+  }
+  sortNodes(roots)
+
+  const out: T[] = []
+  const walk = (nodes: FlatDepthNode<T>[]) => {
+    for (const node of nodes) {
+      out.push(node.record)
+      walk(node.children)
+    }
+  }
+  walk(roots)
+  return out
 }
 
 export interface FlatTreeRow<T> {
@@ -129,8 +210,7 @@ export function flattenFlatDepthTreeRows<T>(
     stack.push(i)
   }
 
-  const hasDirectChild = (i: number) =>
-    i + 1 < n && depthOf(list[i + 1]) === depthOf(list[i]) + 1
+  const hasDirectChild = (i: number) => i + 1 < n && depthOf(list[i + 1]) === depthOf(list[i]) + 1
 
   const minDepth = Math.min(...list.map(depthOf))
   const out: FlatTreeRow<T>[] = []

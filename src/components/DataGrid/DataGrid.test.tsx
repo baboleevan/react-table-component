@@ -16,14 +16,7 @@ describe('DataGrid', () => {
   })
 
   it('shows custom empty text from locale', () => {
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={[nameCol]}
-        dataSource={[]}
-        locale={{ emptyText: 'No rows' }}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={[nameCol]} dataSource={[]} locale={{ emptyText: 'No rows' }} />)
     expect(screen.getByText('No rows')).toBeInTheDocument()
   })
 
@@ -36,11 +29,7 @@ describe('DataGrid', () => {
       dataIndex: 'name',
       editable: true,
       renderEditor: (value, _r, _i, onCommit) => (
-        <input
-          className="test-editor"
-          defaultValue={String(value ?? '')}
-          onChange={(e) => onCommit(e.target.value)}
-        />
+        <input className="test-editor" defaultValue={String(value ?? '')} onChange={(e) => onCommit(e.target.value)} />
       ),
     }
     render(
@@ -164,6 +153,41 @@ describe('DataGrid', () => {
     expect(onChange).toHaveBeenCalled()
   })
 
+  it('sorts expandable tree rows when a sortable header is clicked', async () => {
+    type TreeRow = Row & { children?: TreeRow[] }
+    const user = userEvent.setup()
+    render(
+      <DataGrid<TreeRow>
+        rowKey="id"
+        columns={[{ key: 'name', title: 'Name', dataIndex: 'name', sorter: true }]}
+        dataSource={[
+          {
+            id: 1,
+            name: 'Z parent',
+            children: [
+              { id: 11, name: 'Z child' },
+              { id: 12, name: 'A child' },
+            ],
+          },
+          { id: 2, name: 'A parent' },
+        ]}
+        expandable={{ childrenColumnName: 'children', defaultExpandedRowKeys: [1] }}
+        pagination={false}
+      />,
+    )
+
+    await user.click(screen.getByRole('columnheader', { name: /Name/i }))
+
+    const names = screen
+      .getAllByRole('row')
+      .slice(1)
+      .map((row) => row.textContent ?? '')
+    expect(names[0]).toContain('A parent')
+    expect(names[1]).toContain('Z parent')
+    expect(names[2]).toContain('A child')
+    expect(names[3]).toContain('Z child')
+  })
+
   it('applies external cell style from cellStyleResolver', () => {
     render(
       <DataGrid<Row>
@@ -174,9 +198,7 @@ describe('DataGrid', () => {
           { id: 2, name: 'B' },
         ]}
         cellStyleResolver={({ rowKey, columnKey }) =>
-          rowKey === 2 && columnKey === 'name'
-            ? { style: { backgroundColor: '#222222', color: '#f5f5f5' } }
-            : undefined
+          rowKey === 2 && columnKey === 'name' ? { style: { backgroundColor: '#222222', color: '#f5f5f5' } } : undefined
         }
       />,
     )
@@ -285,14 +307,7 @@ describe('DataGrid', () => {
       { key: 'a', title: 'A', dataIndex: 'a' },
       { key: 'b', title: 'B', dataIndex: 'b' },
     ]
-    render(
-      <DataGrid<TwoCol>
-        rowKey="id"
-        columns={cols}
-        dataSource={[{ id: 1, a: 'x', b: 'y' }]}
-        gridRef={gridRef}
-      />,
-    )
+    render(<DataGrid<TwoCol> rowKey="id" columns={cols} dataSource={[{ id: 1, a: 'x', b: 'y' }]} gridRef={gridRef} />)
 
     act(() => {
       gridRef.current?.setRangeStyle({
@@ -321,13 +336,7 @@ describe('DataGrid', () => {
   })
 
   it('sets aria-sort on sortable header', () => {
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={[{ ...nameCol, sorter: true }]}
-        dataSource={[{ id: 1, name: 'A' }]}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={[{ ...nameCol, sorter: true }]} dataSource={[{ id: 1, name: 'A' }]} />)
     const th = screen.getByRole('columnheader', { name: /이름/i })
     expect(th).toHaveAttribute('aria-sort', 'none')
   })
@@ -352,6 +361,33 @@ describe('DataGrid', () => {
 
     const rowCheckbox = screen.getAllByRole('checkbox')[1]!
     expect(rowCheckbox.closest('td')).toHaveClass('fixed-left')
+    expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '40px' })
+  })
+
+  it('fixes expandable column to the left and offsets fixed data columns', () => {
+    type TreeRow = { id: number; a: string; b: string; children?: TreeRow[] }
+    const cols: ColumnType<TreeRow>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a', fixed: 'left', width: 80 },
+      { key: 'b', title: 'B', dataIndex: 'b', width: 200 },
+    ]
+
+    render(
+      <DataGrid<TreeRow>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, a: 'x', b: 'y', children: [{ id: 2, a: 'child', b: 'z' }] }]}
+        scroll={{ x: 400 }}
+        expandable={{ childrenColumnName: 'children', fixed: 'left' }}
+      />,
+    )
+
+    const expandHeader = document.querySelector('.datagrid__th.datagrid__expand-col')
+    const expandCell = document.querySelector('.datagrid__td.datagrid__expand-col')
+    expect(expandHeader).toHaveClass('fixed-left')
+    expect(expandHeader).toHaveStyle({ '--sticky-left': '0px' })
+    expect(expandCell).toHaveClass('fixed-left')
+    expect(expandCell).toHaveStyle({ '--sticky-left': '0px' })
+    expect(screen.getByRole('columnheader', { name: 'A' })).toHaveStyle({ '--sticky-left': '40px' })
     expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '40px' })
   })
 
@@ -385,14 +421,7 @@ describe('DataGrid', () => {
       { key: 'solo', title: '단일', dataIndex: 'name' },
     ]
 
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={cols}
-        dataSource={[{ id: 1, name: 'x' }]}
-        pagination={false}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={cols} dataSource={[{ id: 1, name: 'x' }]} pagination={false} />)
 
     expect(document.querySelectorAll('.datagrid__thead tr')).toHaveLength(2)
     expect(screen.getByRole('columnheader', { name: '그룹' })).toHaveClass('group-header')
@@ -403,14 +432,7 @@ describe('DataGrid', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
 
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={[nameCol]}
-        dataSource={[{ id: 1, name: 'Alpha' }]}
-        pagination={false}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={[nameCol]} dataSource={[{ id: 1, name: 'Alpha' }]} pagination={false} />)
 
     const scroll = document.querySelector('.datagrid__scroll')
     expect(scroll).toBeTruthy()
@@ -429,14 +451,7 @@ describe('DataGrid', () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
 
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={[nameCol]}
-        dataSource={[{ id: 1, name: 'Alpha' }]}
-        pagination={false}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={[nameCol]} dataSource={[{ id: 1, name: 'Alpha' }]} pagination={false} />)
 
     const scroll = document.querySelector('.datagrid__scroll') as HTMLElement
     const cellText = screen.getByText('Alpha')
@@ -493,14 +508,7 @@ describe('DataGrid', () => {
     const revokeObjectURL = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
 
     const gridRef = createRef<DataGridHandle<Row>>()
-    render(
-      <DataGrid<Row>
-        rowKey="id"
-        columns={[nameCol]}
-        dataSource={[{ id: 1, name: 'X' }]}
-        gridRef={gridRef}
-      />,
-    )
+    render(<DataGrid<Row> rowKey="id" columns={[nameCol]} dataSource={[{ id: 1, name: 'X' }]} gridRef={gridRef} />)
 
     act(() => {
       gridRef.current?.exportAsCsv({ filename: 'rows.csv', includeBom: false })
@@ -549,13 +557,7 @@ describe('DataGrid', () => {
     const cols: ColumnType<PageRow>[] = [{ key: 'name', title: '이름', dataIndex: 'name' }]
 
     render(
-      <DataGrid<PageRow>
-        rowKey="id"
-        columns={cols}
-        dataSource={rows}
-        pagination={{ pageSize: 8 }}
-        gridRef={gridRef}
-      />,
+      <DataGrid<PageRow> rowKey="id" columns={cols} dataSource={rows} pagination={{ pageSize: 8 }} gridRef={gridRef} />,
     )
 
     expect(screen.getByText('Row 1')).toBeInTheDocument()

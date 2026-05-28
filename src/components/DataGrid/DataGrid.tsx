@@ -45,6 +45,8 @@ import {
 import {
   applyColumnFilters,
   applyMultiSort,
+  applyTreeSort,
+  applyFlatDepthTreeSort,
   recordMatchesColumnFilters,
   flattenTreeRows,
   flattenFlatDepthTreeRows,
@@ -94,9 +96,7 @@ function resolveFixedOffsets<T>(columns: ColumnType<T>[]): InternalColumnType<T>
 
 function shiftLeftFixedColumnOffsets<T>(columns: InternalColumnType<T>[], prefix: number): InternalColumnType<T>[] {
   if (prefix <= 0) return columns
-  return columns.map((col) =>
-    col.fixed === 'left' ? { ...col, _left: (col._left ?? 0) + prefix } : col,
-  )
+  return columns.map((col) => (col.fixed === 'left' ? { ...col, _left: (col._left ?? 0) + prefix } : col))
 }
 
 function getExpandColumnWidth<T>(expandable: DataGridProps<T>['expandable'], isTreeMode: boolean): number {
@@ -113,12 +113,7 @@ function measureTheadRowTopOffsets(thead: HTMLTableSectionElement): number[] {
   const fromLayout = rows.map((row) => Math.round(row.getBoundingClientRect().top - theadTop))
 
   // 레이아웃 미완료 시 2행째 top이 0으로 나오는 경우 — offsetHeight 누적 fallback
-  if (
-    rows.length > 1 &&
-    fromLayout[1] !== undefined &&
-    fromLayout[1] <= fromLayout[0] &&
-    rows[1]!.offsetHeight > 0
-  ) {
+  if (rows.length > 1 && fromLayout[1] !== undefined && fromLayout[1] <= fromLayout[0] && rows[1]!.offsetHeight > 0) {
     let cumulative = 0
     return rows.map((row) => {
       const offset = cumulative
@@ -241,12 +236,7 @@ function stepCellRight(
   return null
 }
 
-function stepCellLeft(
-  row: number,
-  col: number,
-  numRows: number,
-  numCols: number,
-): { row: number; col: number } | null {
+function stepCellLeft(row: number, col: number, numRows: number, numCols: number): { row: number; col: number } | null {
   if (numCols <= 0 || numRows <= 0) return null
   if (col > 0) return { row, col: col - 1 }
   if (row > 0) return { row: row - 1, col: numCols - 1 }
@@ -483,13 +473,7 @@ const InlineEditInput = memo(function InlineEditInput({
 // ──────────────────────────────────────────────
 // 정렬 아이콘
 // ──────────────────────────────────────────────
-function SortIcon({
-  order,
-  tooltip,
-}: {
-  order: SortOrder
-  tooltip?: boolean | { title?: ReactNode }
-}) {
+function SortIcon({ order, tooltip }: { order: SortOrder; tooltip?: boolean | { title?: ReactNode } }) {
   const title =
     tooltip === true
       ? order === 'ascend'
@@ -509,26 +493,28 @@ function SortIcon({
   )
 }
 
-const GridCellInner = memo(function GridCellInner({
-  col,
-  record,
-  absIdx,
-  rawValue,
-}: {
-  col: ColumnType<Record<string, unknown>>
-  record: Record<string, unknown>
-  absIdx: number
-  rawValue: unknown
-}) {
-  if (!col.render) return <>{rawValue as ReactNode}</>
-  const out = normalizeCellRenderResult(col.render(rawValue, record, absIdx))
-  return <>{out.children}</>
-},
-(prev, next) => {
-  const fn = next.col.shouldCellUpdate
-  if (fn) return !fn(next.record, prev.record)
-  return prev.record === next.record && prev.rawValue === next.rawValue && prev.absIdx === next.absIdx
-})
+const GridCellInner = memo(
+  function GridCellInner({
+    col,
+    record,
+    absIdx,
+    rawValue,
+  }: {
+    col: ColumnType<Record<string, unknown>>
+    record: Record<string, unknown>
+    absIdx: number
+    rawValue: unknown
+  }) {
+    if (!col.render) return <>{rawValue as ReactNode}</>
+    const out = normalizeCellRenderResult(col.render(rawValue, record, absIdx))
+    return <>{out.children}</>
+  },
+  (prev, next) => {
+    const fn = next.col.shouldCellUpdate
+    if (fn) return !fn(next.record, prev.record)
+    return prev.record === next.record && prev.rawValue === next.rawValue && prev.absIdx === next.absIdx
+  },
+)
 
 // ──────────────────────────────────────────────
 // 페이지네이션 바
@@ -727,14 +713,20 @@ export function DataGrid<T = Record<string, unknown>>({
   }, [allColumns])
   const resolvedColumns = useMemo(() => {
     const cols = resolveFixedOffsets(leafColumns)
-    if (rowSelection?.fixed !== 'left') return cols
-    const isTree =
-      Boolean(expandable?.childrenColumnName) || Boolean(expandable?.treeDataFromFlatList)
-    const prefix = getExpandColumnWidth(expandable, isTree) + ROW_SELECTION_COL_WIDTH
+    const isTree = Boolean(expandable?.childrenColumnName) || Boolean(expandable?.treeDataFromFlatList)
+    const hasExpandRenderForOffsets = Boolean(expandable?.expandedRowRender && !isTree)
+    const expandWidth = hasExpandRenderForOffsets || isTree ? EXPAND_COL_WIDTH : 0
+    const prefix =
+      rowSelection?.fixed === 'left'
+        ? expandWidth + ROW_SELECTION_COL_WIDTH
+        : expandable?.fixed === 'left'
+          ? expandWidth
+          : 0
     return shiftLeftFixedColumnOffsets(cols, prefix)
   }, [
     leafColumns,
     rowSelection?.fixed,
+    expandable?.fixed,
     expandable?.childrenColumnName,
     expandable?.treeDataFromFlatList,
     expandable?.expandedRowRender,
@@ -812,9 +804,7 @@ export function DataGrid<T = Record<string, unknown>>({
     const out: TableFilters = {}
     for (const c of leafColumns) {
       const hasFilter =
-        (c.filters?.length && c.onFilter) ||
-        c.filterDropdown ||
-        (c.filterMode === 'text' && c.onTextFilter)
+        (c.filters?.length && c.onFilter) || c.filterDropdown || (c.filterMode === 'text' && c.onTextFilter)
       if (!hasFilter) continue
       const v = c.filteredValue !== undefined ? c.filteredValue : internalFilters[c.key]
       out[c.key] = v === undefined ? null : v
@@ -857,18 +847,44 @@ export function DataGrid<T = Record<string, unknown>>({
   const isFlatDepthTree = Boolean(flatTreeOpts)
   const isTreeMode = Boolean(childrenColumnName) || isFlatDepthTree
 
+  const sortedTreeData = useMemo(() => {
+    if (!isTreeMode || sortRemote) return dataSource
+    if (isFlatDepthTree) {
+      const field = flatTreeOpts?.depthField ?? 'depth'
+      return applyFlatDepthTreeSort(dataSource, field, effectiveSortStates, allColumns as unknown as ColumnType<T>[])
+    }
+    if (childrenColumnName) {
+      return applyTreeSort(
+        dataSource,
+        childrenColumnName,
+        effectiveSortStates,
+        allColumns as unknown as ColumnType<T>[],
+      )
+    }
+    return dataSource
+  }, [
+    dataSource,
+    isTreeMode,
+    sortRemote,
+    isFlatDepthTree,
+    flatTreeOpts?.depthField,
+    childrenColumnName,
+    effectiveSortStates,
+    allColumns,
+  ])
+
   const treeFlatRows = useMemo((): FlatTreeRow<T>[] | null => {
     if (!isTreeMode) return null
     if (isFlatDepthTree) {
       const field = flatTreeOpts?.depthField ?? 'depth'
-      return flattenFlatDepthTreeRows(dataSource, field, expandedKeysSet, getRowKeyForRecord)
+      return flattenFlatDepthTreeRows(sortedTreeData, field, expandedKeysSet, getRowKeyForRecord)
     }
     if (childrenColumnName) {
-      return flattenTreeRows(dataSource, childrenColumnName, expandedKeysSet, getRowKeyForRecord)
+      return flattenTreeRows(sortedTreeData, childrenColumnName, expandedKeysSet, getRowKeyForRecord)
     }
     return null
   }, [
-    dataSource,
+    sortedTreeData,
     isTreeMode,
     isFlatDepthTree,
     flatTreeOpts?.depthField,
@@ -1050,14 +1066,15 @@ export function DataGrid<T = Record<string, unknown>>({
   const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
   const hasExpandCol = hasExpandRender || isTreeMode
   const expandColWidth = getExpandColumnWidth(expandable, isTreeMode)
+  const isExpandFixedLeft = hasExpandCol && expandable?.fixed === 'left'
   const isSelectionFixedLeft = rowSelection?.fixed === 'left'
   const hasFixedLeftDataColumns = resolvedColumns.some((col) => col.fixed === 'left')
+  const isExpandFixedLeftLast = isExpandFixedLeft && !isSelectionFixedLeft && !hasFixedLeftDataColumns
   const isSelectionFixedLeftLast = isSelectionFixedLeft && !hasFixedLeftDataColumns
   const selectionStickyLeft = isSelectionFixedLeft ? expandColWidth : undefined
 
   // ── 가상화 ───────────────────────────
-  const shouldVirtualize =
-    !isTreeMode && !hasExpandCol && (virtual ?? pagedData.length > VIRTUAL_THRESHOLD)
+  const shouldVirtualize = !isTreeMode && !hasExpandCol && (virtual ?? pagedData.length > VIRTUAL_THRESHOLD)
   const {
     containerRef,
     offsetTop,
@@ -1428,9 +1445,7 @@ export function DataGrid<T = Record<string, unknown>>({
       onFocusedRowChange?.(nextRecord, nextRow)
 
       if (direction === 'right' || direction === 'left') {
-        setEditCell(
-          isCellEditable(nextCol_, nextRecord, nextRow) ? { rowKey: nextRowKey, colKey: nextCol_.key } : null,
-        )
+        setEditCell(isCellEditable(nextCol_, nextRecord, nextRow) ? { rowKey: nextRowKey, colKey: nextCol_.key } : null)
       } else if (isCellEditable(nextCol_, nextRecord, nextRow)) {
         setEditCell({ rowKey: nextRowKey, colKey: nextCol_.key })
       } else {
@@ -1602,7 +1617,7 @@ export function DataGrid<T = Record<string, unknown>>({
   // ── 정렬 핸들러 (Shift+클릭: 다중 정렬) ───────────
   const handleSort = useCallback(
     (col: ColumnType<T>, e?: ReactMouseEvent) => {
-      if (!col.sorter || isTreeMode) return
+      if (!col.sorter) return
       const shift = e?.shiftKey
       setActiveCellPos(null)
       setEditCell(null)
@@ -1680,7 +1695,6 @@ export function DataGrid<T = Record<string, unknown>>({
       })
     },
     [
-      isTreeMode,
       leafColumns,
       allColumns,
       dataSource,
@@ -1711,15 +1725,10 @@ export function DataGrid<T = Record<string, unknown>>({
         const field = Array.isArray(di) ? di.join('.') : (di ?? c.key)
         return [{ column: c, columnKey: s.columnKey, order: s.order, field }]
       })
-      onChange?.(
-        { current: page, pageSize },
-        mergedFilters,
-        sr.length <= 1 ? (sr[0] ?? {}) : sr,
-        {
-          currentDataSource: rowPacks.map((p) => p.record),
-          action: 'paginate',
-        },
-      )
+      onChange?.({ current: page, pageSize }, mergedFilters, sr.length <= 1 ? (sr[0] ?? {}) : sr, {
+        currentDataSource: rowPacks.map((p) => p.record),
+        action: 'paginate',
+      })
     },
     [paginationConfig, onChange, mergedFilters, effectiveSortStates, sortColumnsByKey, rowPacks, resetScroll],
   )
@@ -1810,14 +1819,7 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 셀 편집 핸들러 ────────────────────────────
   const handleCellActivate = useCallback(
-    (
-      rowK: string | number,
-      colKey: string,
-      col: ColumnType<T>,
-      record: T,
-      rowAbsIdx: number,
-      colIdx: number,
-    ) => {
+    (rowK: string | number, colKey: string, col: ColumnType<T>, record: T, rowAbsIdx: number, colIdx: number) => {
       if (!isCellEditable(col, record, rowAbsIdx)) return
       setEditCell({ rowKey: rowK, colKey })
       setActiveCellPos({ rowAbsIdx, colIdx })
@@ -2016,9 +2018,7 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const hasRowAdd = Boolean(rowOperations?.showAdd && rowOperations.onAdd)
   const hasRowDelete = Boolean(rowOperations?.showDelete && rowOperations.onDelete)
-  const hasDeleteSelected = Boolean(
-    rowOperations?.showDeleteSelected && rowOperations.onDeleteSelected && rowSelection,
-  )
+  const hasDeleteSelected = Boolean(rowOperations?.showDeleteSelected && rowOperations.onDeleteSelected && rowSelection)
   const hasToolbar = hasRowAdd || hasDeleteSelected
   const tableBodyColSpan =
     resolvedColumns.length + (rowSelection ? 1 : 0) + (hasRowDelete ? 1 : 0) + (hasExpandCol ? 1 : 0)
@@ -2081,6 +2081,7 @@ export function DataGrid<T = Record<string, unknown>>({
     dataSource,
     columnWidths,
     resolvedColumns.length,
+    containerRef,
     maxDepth,
   ])
 
@@ -2114,12 +2115,10 @@ export function DataGrid<T = Record<string, unknown>>({
         const field = Array.isArray(di) ? di.join('.') : (di ?? c.key)
         return [{ column: c, columnKey: s.columnKey, order: s.order, field }]
       })
-      onChange?.(
-        { current: currentPage, pageSize: currentPageSize },
-        newMerged,
-        sr.length <= 1 ? (sr[0] ?? {}) : sr,
-        { currentDataSource: after, action: 'filter' },
-      )
+      onChange?.({ current: currentPage, pageSize: currentPageSize }, newMerged, sr.length <= 1 ? (sr[0] ?? {}) : sr, {
+        currentDataSource: after,
+        action: 'filter',
+      })
     },
     [
       dataSource,
@@ -2139,9 +2138,7 @@ export function DataGrid<T = Record<string, unknown>>({
   const clearColumnFilterState = useCallback(
     (col: ColumnType<T>) => {
       const keys: Key[] =
-        col.filterResetToDefaultFilteredValue && col.defaultFilteredValue?.length
-          ? [...col.defaultFilteredValue]
-          : []
+        col.filterResetToDefaultFilteredValue && col.defaultFilteredValue?.length ? [...col.defaultFilteredValue] : []
       commitColumnFilter(col.key, keys)
     },
     [commitColumnFilter],
@@ -2246,9 +2243,7 @@ export function DataGrid<T = Record<string, unknown>>({
         </div>
       )}
 
-      {title && (
-        <div className="datagrid__caption datagrid__caption--top">{title(pagedData.map((p) => p.record))}</div>
-      )}
+      {title && <div className="datagrid__caption datagrid__caption--top">{title(pagedData.map((p) => p.record))}</div>}
 
       {/* 스크롤 컨테이너 — 키보드 핸들러가 이곳에 위치 */}
       <div
@@ -2279,101 +2274,109 @@ export function DataGrid<T = Record<string, unknown>>({
           {showHeader && (
             <thead className="datagrid__thead" ref={theadRef}>
               {headerRows.map((row, rowIdx) => (
-                <tr key={rowIdx} {...(onHeaderRow?.(row.map((x) => x.col), rowIdx) ?? {})}>
+                <tr
+                  key={rowIdx}
+                  {...(onHeaderRow?.(
+                    row.map((x) => x.col),
+                    rowIdx,
+                  ) ?? {})}
+                >
                   {rowIdx === 0 && hasExpandCol && (
                     <th
-                      className="datagrid__th datagrid__expand-col"
+                      className={[
+                        'datagrid__th',
+                        'datagrid__expand-col',
+                        isExpandFixedLeft ? 'fixed-left' : '',
+                        isExpandFixedLeftLast ? 'fixed-left-last' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
                       rowSpan={maxDepth > 1 ? maxDepth : undefined}
                       style={
                         {
                           '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                          ...(isExpandFixedLeft ? ({ '--sticky-left': '0px' } as CSSProperties) : {}),
                         } as CSSProperties
                       }
                     />
                   )}
                   {rowIdx === 0 && rowSelection && (
-                  <th
-                    className={[
+                    <th
+                      className={[
+                        'datagrid__th',
+                        'datagrid__selection-col',
+                        isSelectionFixedLeft ? 'fixed-left' : '',
+                        isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                      ]
+                        .filter(Boolean)
+                        .join(' ')}
+                      rowSpan={maxDepth > 1 ? maxDepth : undefined}
+                      style={
+                        {
+                          '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                          ...(selectionStickyLeft !== undefined
+                            ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
+                            : {}),
+                        } as CSSProperties
+                      }
+                    >
+                      {(rowSelection.type ?? 'checkbox') === 'checkbox' && (
+                        <input
+                          type="checkbox"
+                          tabIndex={-1}
+                          checked={allSelected}
+                          ref={(el) => {
+                            if (el) el.indeterminate = indeterminate
+                          }}
+                          onChange={(e) => handleSelectAll(e.target.checked)}
+                        />
+                      )}
+                    </th>
+                  )}
+                  {row.map(({ col, colSpan, rowSpan }) => {
+                    const isLeaf = !col.children?.length
+                    const canSort = Boolean(col.sorter)
+                    const sortState = effectiveSortStates.find((s) => s.columnKey === col.key)
+                    const currentOrder: SortOrder = sortState ? sortState.order : null
+                    const isCurrentSort = Boolean(currentOrder)
+                    const leafInternal = resolvedColumns.find((c) => c.key === col.key)
+                    const thClass = [
                       'datagrid__th',
-                      'datagrid__selection-col',
-                      isSelectionFixedLeft ? 'fixed-left' : '',
-                      isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                      col.align ? `align-${col.align}` : '',
+                      canSort ? 'sortable' : '',
+                      canSort && isCurrentSort && currentOrder ? 'sorted' : '',
+                      isLeaf && col.fixed ? `fixed-${col.fixed}` : '',
+                      isLeaf && fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
+                      isLeaf && fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
+                      isLeaf && fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
+                      !isLeaf ? 'group-header' : '',
+                      isLeaf && col.resizable !== false ? 'resizable' : '',
                     ]
                       .filter(Boolean)
-                      .join(' ')}
-                    rowSpan={maxDepth > 1 ? maxDepth : undefined}
-                    style={
-                      {
-                        '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
-                        ...(selectionStickyLeft !== undefined
-                          ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
-                          : {}),
-                      } as CSSProperties
+                      .join(' ')
+
+                    const effectiveColSpan =
+                      isLeaf && col.colSpan != null && col.colSpan > 1 ? col.colSpan : colSpan > 1 ? colSpan : undefined
+
+                    const stickyStyle: CSSProperties = {
+                      '--th-sticky-top': `${(thTopOffsets[rowIdx] ?? 0) + stickyOffset}px`,
+                    } as CSSProperties
+                    if (isLeaf && col.fixed === 'left') {
+                      ;(stickyStyle as Record<string, unknown>)['--sticky-left'] = `${leafInternal?._left ?? 0}px`
                     }
-                  >
-                    {(rowSelection.type ?? 'checkbox') === 'checkbox' && (
-                      <input
-                        type="checkbox"
-                        tabIndex={-1}
-                        checked={allSelected}
-                        ref={(el) => {
-                          if (el) el.indeterminate = indeterminate
-                        }}
-                        onChange={(e) => handleSelectAll(e.target.checked)}
-                      />
-                    )}
-                  </th>
-                )}
-                {row.map(({ col, colSpan, rowSpan }) => {
-                  const isLeaf = !col.children?.length
-                  const canSort = Boolean(col.sorter)
-                  const sortState = effectiveSortStates.find((s) => s.columnKey === col.key)
-                  const currentOrder: SortOrder = sortState ? sortState.order : null
-                  const isCurrentSort = Boolean(currentOrder)
-                  const leafInternal = resolvedColumns.find((c) => c.key === col.key)
-                  const thClass = [
-                    'datagrid__th',
-                    col.align ? `align-${col.align}` : '',
-                    canSort ? 'sortable' : '',
-                    canSort && isCurrentSort && currentOrder ? 'sorted' : '',
-                    isLeaf && col.fixed ? `fixed-${col.fixed}` : '',
-                    isLeaf && fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
-                    isLeaf && fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
-                    isLeaf && fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
-                    !isLeaf ? 'group-header' : '',
-                    isLeaf && col.resizable !== false ? 'resizable' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')
+                    if (isLeaf && col.fixed === 'right') {
+                      ;(stickyStyle as Record<string, unknown>)['--sticky-right'] = `${leafInternal?._right ?? 0}px`
+                    }
 
-                  const effectiveColSpan =
-                    isLeaf && col.colSpan != null && col.colSpan > 1
-                      ? col.colSpan
-                      : colSpan > 1
-                        ? colSpan
-                        : undefined
-
-                  const stickyStyle: CSSProperties = {
-                    '--th-sticky-top': `${(thTopOffsets[rowIdx] ?? 0) + stickyOffset}px`,
-                  } as CSSProperties
-                  if (isLeaf && col.fixed === 'left') {
-                    ;(stickyStyle as Record<string, unknown>)['--sticky-left'] = `${leafInternal?._left ?? 0}px`
-                  }
-                  if (isLeaf && col.fixed === 'right') {
-                    ;(stickyStyle as Record<string, unknown>)['--sticky-right'] = `${leafInternal?._right ?? 0}px`
-                  }
-
-                  const hasFilter = Boolean(
-                    isLeaf &&
+                    const hasFilter = Boolean(
+                      isLeaf &&
                       ((col.filters?.length && col.onFilter) ||
                         col.filterDropdown ||
                         (col.filterMode === 'text' && col.onTextFilter)),
-                  )
-                  const filterActive =
-                    hasFilter && isColumnFilterActive(col, mergedFilters[col.key] ?? null)
+                    )
+                    const filterActive = hasFilter && isColumnFilterActive(col, mergedFilters[col.key] ?? null)
 
-                  const ariaSort: 'ascending' | 'descending' | 'none' | undefined =
-                    canSort
+                    const ariaSort: 'ascending' | 'descending' | 'none' | undefined = canSort
                       ? currentOrder === 'ascend'
                         ? 'ascending'
                         : currentOrder === 'descend'
@@ -2381,76 +2384,76 @@ export function DataGrid<T = Record<string, unknown>>({
                           : 'none'
                       : undefined
 
-                  return (
-                    <th
-                      key={col.key}
-                      className={[thClass, filterActive ? 'filter-active' : ''].filter(Boolean).join(' ')}
-                      colSpan={effectiveColSpan}
-                      rowSpan={rowSpan > 1 ? rowSpan : undefined}
-                      style={stickyStyle}
-                      aria-sort={ariaSort}
-                      onClick={
-                        canSort
-                          ? (e) => {
-                              const el = e.target as HTMLElement
-                              if (el.closest('.datagrid__filter-trigger')) return
-                              if (el.closest('.datagrid__resize-handle')) return
-                              handleSort(col, e)
-                            }
-                          : undefined
-                      }
-                    >
-                      <div className="datagrid__th-inner">
-                        <span className="datagrid__th-title">{col.title}</span>
-                        {hasFilter && (
-                          <button
-                            type="button"
-                            className={['datagrid__filter-trigger', filterActive ? 'datagrid__filter-trigger--active' : '']
-                              .filter(Boolean)
-                              .join(' ')}
-                            aria-label="필터"
-                            aria-pressed={filterActive}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setFilterAnchorEl(e.currentTarget)
-                              setOpenFilterKey((k) => (k === col.key ? null : col.key))
-                            }}
-                          >
-                            ▾
-                          </button>
-                        )}
-                        {canSort && (
-                          <SortIcon
-                            order={isCurrentSort ? currentOrder : null}
-                            tooltip={col.showSorterTooltip}
+                    return (
+                      <th
+                        key={col.key}
+                        className={[thClass, filterActive ? 'filter-active' : ''].filter(Boolean).join(' ')}
+                        colSpan={effectiveColSpan}
+                        rowSpan={rowSpan > 1 ? rowSpan : undefined}
+                        style={stickyStyle}
+                        aria-sort={ariaSort}
+                        onClick={
+                          canSort
+                            ? (e) => {
+                                const el = e.target as HTMLElement
+                                if (el.closest('.datagrid__filter-trigger')) return
+                                if (el.closest('.datagrid__resize-handle')) return
+                                handleSort(col, e)
+                              }
+                            : undefined
+                        }
+                      >
+                        <div className="datagrid__th-inner">
+                          <span className="datagrid__th-title">{col.title}</span>
+                          {hasFilter && (
+                            <button
+                              type="button"
+                              className={[
+                                'datagrid__filter-trigger',
+                                filterActive ? 'datagrid__filter-trigger--active' : '',
+                              ]
+                                .filter(Boolean)
+                                .join(' ')}
+                              aria-label="필터"
+                              aria-pressed={filterActive}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setFilterAnchorEl(e.currentTarget)
+                                setOpenFilterKey((k) => (k === col.key ? null : col.key))
+                              }}
+                            >
+                              ▾
+                            </button>
+                          )}
+                          {canSort && (
+                            <SortIcon order={isCurrentSort ? currentOrder : null} tooltip={col.showSorterTooltip} />
+                          )}
+                        </div>
+                        {isLeaf && col.resizable !== false && (
+                          <span
+                            className="datagrid__resize-handle"
+                            onMouseDown={(e) => handleResizeStart(e, col)}
+                            onClick={(e) => e.stopPropagation()}
                           />
                         )}
-                      </div>
-                      {isLeaf && col.resizable !== false && (
-                        <span
-                          className="datagrid__resize-handle"
-                          onMouseDown={(e) => handleResizeStart(e, col)}
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      )}
+                      </th>
+                    )
+                  })}
+                  {rowIdx === 0 && hasRowDelete && (
+                    <th
+                      className="datagrid__th datagrid__th--row-ops"
+                      rowSpan={maxDepth > 1 ? maxDepth : undefined}
+                      style={
+                        {
+                          '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
+                        } as CSSProperties
+                      }
+                    >
+                      {rowOperations?.deleteColumnTitle ?? ''}
                     </th>
-                  )
-                })}
-                {rowIdx === 0 && hasRowDelete && (
-                  <th
-                    className="datagrid__th datagrid__th--row-ops"
-                    rowSpan={maxDepth > 1 ? maxDepth : undefined}
-                    style={
-                      {
-                        '--th-sticky-top': `${(thTopOffsets[0] ?? 0) + stickyOffset}px`,
-                      } as CSSProperties
-                    }
-                  >
-                    {rowOperations?.deleteColumnTitle ?? ''}
-                  </th>
-                )}
-              </tr>
-            ))}
+                  )}
+                </tr>
+              ))}
             </thead>
           )}
 
@@ -2510,311 +2513,321 @@ export function DataGrid<T = Record<string, unknown>>({
               return (
                 <Fragment key={rk}>
                   <BodyRowTag
-                  {...rowExtraProps}
-                  className={trClass}
-                  onClick={(e) => {
-                    setFocusedKey(rk)
-                    onFocusedRowChange?.(record, absIdx)
-                    if (expandable?.expandRowByClick && rowExpandable && (hasExpandRender || showTreeToggle)) {
-                      toggleRowExpand(rk, record, isExpanded)
-                    }
-                    if (
-                      rowSelection?.clickRowToSelect &&
-                      !isSelectionDisabled &&
-                      !shouldIgnoreRowSelectionClick(e.target)
-                    ) {
-                      handleSelectRow(record, absIdx, !isSelected)
-                    }
-                    rowExtraProps.onClick?.(e)
-                  }}
-                >
-                  {hasExpandCol && (
-                    <td className="datagrid__td datagrid__expand-col">
-                      {(hasExpandRender && rowExpandable) || showTreeToggle ? (
-                        expandable?.expandIcon ? (
-                          expandable.expandIcon({
-                            expanded: isExpanded,
-                            onExpand: onExpandClick,
-                            record,
-                          })
-                        ) : (
-                          <button
-                            type="button"
-                            className="datagrid__expand-btn"
-                            aria-expanded={isExpanded}
-                            onClick={onExpandClick}
-                          >
-                            {isExpanded ? '−' : '+'}
-                          </button>
-                        )
-                      ) : null}
-                    </td>
-                  )}
-                  {rowSelection && (
-                    <td
-                      className={[
+                    {...rowExtraProps}
+                    className={trClass}
+                    onClick={(e) => {
+                      setFocusedKey(rk)
+                      onFocusedRowChange?.(record, absIdx)
+                      if (expandable?.expandRowByClick && rowExpandable && (hasExpandRender || showTreeToggle)) {
+                        toggleRowExpand(rk, record, isExpanded)
+                      }
+                      if (
+                        rowSelection?.clickRowToSelect &&
+                        !isSelectionDisabled &&
+                        !shouldIgnoreRowSelectionClick(e.target)
+                      ) {
+                        handleSelectRow(record, absIdx, !isSelected)
+                      }
+                      rowExtraProps.onClick?.(e)
+                    }}
+                  >
+                    {hasExpandCol && (
+                      <td
+                        className={[
+                          'datagrid__td',
+                          'datagrid__expand-col',
+                          isExpandFixedLeft ? 'fixed-left' : '',
+                          isExpandFixedLeftLast ? 'fixed-left-last' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        style={isExpandFixedLeft ? ({ '--sticky-left': '0px' } as CSSProperties) : undefined}
+                      >
+                        {(hasExpandRender && rowExpandable) || showTreeToggle ? (
+                          expandable?.expandIcon ? (
+                            expandable.expandIcon({
+                              expanded: isExpanded,
+                              onExpand: onExpandClick,
+                              record,
+                            })
+                          ) : (
+                            <button
+                              type="button"
+                              className="datagrid__expand-btn"
+                              aria-expanded={isExpanded}
+                              onClick={onExpandClick}
+                            >
+                              {isExpanded ? '−' : '+'}
+                            </button>
+                          )
+                        ) : null}
+                      </td>
+                    )}
+                    {rowSelection && (
+                      <td
+                        className={[
+                          'datagrid__td',
+                          'datagrid__selection-col',
+                          isSelectionFixedLeft ? 'fixed-left' : '',
+                          isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ')}
+                        style={
+                          selectionStickyLeft !== undefined
+                            ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
+                            : undefined
+                        }
+                      >
+                        <input
+                          type={rowSelection.type ?? 'checkbox'}
+                          tabIndex={-1}
+                          checked={isSelected}
+                          disabled={isSelectionDisabled}
+                          onChange={(e) => handleSelectRow(record, absIdx, e.target.checked)}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </td>
+                    )}
+
+                    {resolvedColumns.map((col, colIdx) => {
+                      const cellProps = col.onCell?.(record, absIdx) ?? {}
+                      const rawValue = getRecordValue(record, col.dataIndex, col.key)
+                      const rowStyleKey = String(rk)
+                      const propStyleConfig = rowStyleMap?.[rowStyleKey]
+                      const imperativeStyleConfig = imperativeRowStyleMap[rowStyleKey]
+                      const resolvedCellStyle = cellStyleResolver?.({
+                        record,
+                        rowKey: rk,
+                        rowIndex: absIdx,
+                        column: col,
+                        columnKey: col.key,
+                        columnIndex: colIdx,
+                        value: rawValue,
+                      })
+                      const resolvedRowClassName = mergeClassNames(
+                        propStyleConfig?.row?.className,
+                        imperativeStyleConfig?.row?.className,
+                      )
+                      const resolvedColumnClassName = mergeClassNames(
+                        propStyleConfig?.cells?.[col.key]?.className,
+                        imperativeStyleConfig?.cells?.[col.key]?.className,
+                      )
+                      const toneClass = mergeClassNames(
+                        toneToClass(resolvedCellStyle?.tone),
+                        toneToClass(propStyleConfig?.row?.tone),
+                        toneToClass(propStyleConfig?.cells?.[col.key]?.tone),
+                        toneToClass(imperativeStyleConfig?.row?.tone),
+                        toneToClass(imperativeStyleConfig?.cells?.[col.key]?.tone),
+                      )
+
+                      const editableForRow = isCellEditable(col, record, absIdx)
+                      // inline 모드: 편집 가능한 셀은 항상 에디터 노출
+                      const isEditing =
+                        editMode === 'inline' ? editableForRow : editCell?.rowKey === rk && editCell.colKey === col.key
+
+                      const displayNr =
+                        !isEditing && col.render
+                          ? normalizeCellRenderResult(col.render(rawValue, record, absIdx))
+                          : null
+                      if (displayNr?.props?.colSpan === 0) return null
+
+                      const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
+                      const validateErr = validateErrorMap.get(`${String(rk)}::${col.key}`)
+                      const cellKey = `${String(rk)}::${col.key}`
+                      const originalVal = originalValuesRef.current.get(cellKey)
+                      const isDirty = originalVal !== undefined && String(rawValue ?? '') !== String(originalVal ?? '')
+
+                      const tdClass = [
                         'datagrid__td',
-                        'datagrid__selection-col',
-                        isSelectionFixedLeft ? 'fixed-left' : '',
-                        isSelectionFixedLeftLast ? 'fixed-left-last' : '',
+                        col.align ? `align-${col.align}` : '',
+                        col.ellipsis ? 'ellipsis' : '',
+                        col.fixed ? `fixed-${col.fixed}` : '',
+                        fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
+                        fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
+                        fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
+                        isEditing ? 'editing' : '',
+                        editableForRow && !isEditing ? 'editable' : '',
+                        isActiveCell && !isEditing ? 'active-cell' : '',
+                        editableForRow && !isEditing && editMode === 'click' ? 'editable-click' : '',
+                        editMode === 'inline' && isEditing ? 'inline-editing' : '',
+                        isDirty ? 'dirty' : '',
+                        showTreeLines && colIdx === 0 ? 'datagrid__td--tree-lines' : '',
+                        // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
+                        validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
+                        toneClass ?? '',
+                        resolvedCellStyle?.className ?? '',
+                        resolvedRowClassName ?? '',
+                        resolvedColumnClassName ?? '',
                       ]
                         .filter(Boolean)
-                        .join(' ')}
-                      style={
-                        selectionStickyLeft !== undefined
-                          ? ({ '--sticky-left': `${selectionStickyLeft}px` } as CSSProperties)
-                          : undefined
-                      }
-                    >
-                      <input
-                        type={rowSelection.type ?? 'checkbox'}
-                        tabIndex={-1}
-                        checked={isSelected}
-                        disabled={isSelectionDisabled}
-                        onChange={(e) => handleSelectRow(record, absIdx, e.target.checked)}
-                        onClick={(e) => e.stopPropagation()}
-                      />
-                    </td>
-                  )}
+                        .join(' ')
 
-                  {resolvedColumns.map((col, colIdx) => {
-                    const cellProps = col.onCell?.(record, absIdx) ?? {}
-                    const rawValue = getRecordValue(record, col.dataIndex, col.key)
-                    const rowStyleKey = String(rk)
-                    const propStyleConfig = rowStyleMap?.[rowStyleKey]
-                    const imperativeStyleConfig = imperativeRowStyleMap[rowStyleKey]
-                    const resolvedCellStyle = cellStyleResolver?.({
-                      record,
-                      rowKey: rk,
-                      rowIndex: absIdx,
-                      column: col,
-                      columnKey: col.key,
-                      columnIndex: colIdx,
-                      value: rawValue,
-                    })
-                    const resolvedRowClassName = mergeClassNames(
-                      propStyleConfig?.row?.className,
-                      imperativeStyleConfig?.row?.className,
-                    )
-                    const resolvedColumnClassName = mergeClassNames(
-                      propStyleConfig?.cells?.[col.key]?.className,
-                      imperativeStyleConfig?.cells?.[col.key]?.className,
-                    )
-                    const toneClass = mergeClassNames(
-                      toneToClass(resolvedCellStyle?.tone),
-                      toneToClass(propStyleConfig?.row?.tone),
-                      toneToClass(propStyleConfig?.cells?.[col.key]?.tone),
-                      toneToClass(imperativeStyleConfig?.row?.tone),
-                      toneToClass(imperativeStyleConfig?.cells?.[col.key]?.tone),
-                    )
-
-                    const editableForRow = isCellEditable(col, record, absIdx)
-                    // inline 모드: 편집 가능한 셀은 항상 에디터 노출
-                    const isEditing =
-                      editMode === 'inline' ? editableForRow : editCell?.rowKey === rk && editCell.colKey === col.key
-
-                    const displayNr =
-                      !isEditing && col.render
-                        ? normalizeCellRenderResult(col.render(rawValue, record, absIdx))
-                        : null
-                    if (displayNr?.props?.colSpan === 0) return null
-
-                    const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
-                    const validateErr = validateErrorMap.get(`${String(rk)}::${col.key}`)
-                    const cellKey = `${String(rk)}::${col.key}`
-                    const originalVal = originalValuesRef.current.get(cellKey)
-                    const isDirty = originalVal !== undefined && String(rawValue ?? '') !== String(originalVal ?? '')
-
-                    const tdClass = [
-                      'datagrid__td',
-                      col.align ? `align-${col.align}` : '',
-                      col.ellipsis ? 'ellipsis' : '',
-                      col.fixed ? `fixed-${col.fixed}` : '',
-                      fixedBoundaryColumnKeys.lastLeft === col.key ? 'fixed-left-last' : '',
-                      fixedBoundaryColumnKeys.afterLastLeft === col.key ? 'after-fixed-left' : '',
-                      fixedBoundaryColumnKeys.firstRight === col.key ? 'fixed-right-first' : '',
-                      isEditing ? 'editing' : '',
-                      editableForRow && !isEditing ? 'editable' : '',
-                      isActiveCell && !isEditing ? 'active-cell' : '',
-                      editableForRow && !isEditing && editMode === 'click' ? 'editable-click' : '',
-                      editMode === 'inline' && isEditing ? 'inline-editing' : '',
-                      isDirty ? 'dirty' : '',
-                      showTreeLines && colIdx === 0 ? 'datagrid__td--tree-lines' : '',
-                      // 편집 중인 셀은 오류 표시 제거 (inline 모드는 항상 editing이므로 제외)
-                      validateErr && (!isEditing || editMode === 'inline') ? `validate-${validateErr.status}` : '',
-                      toneClass ?? '',
-                      resolvedCellStyle?.className ?? '',
-                      resolvedRowClassName ?? '',
-                      resolvedColumnClassName ?? '',
-                    ]
-                      .filter(Boolean)
-                      .join(' ')
-
-                    const treeIndentVar = `${expandable?.indentSize ?? 15}px`
-                    const cellInner = (
-                      <>
-                        {isEditing ? (
-                          col.renderEditor ? (
-                            col.renderEditor(
-                              rawValue,
-                              record,
-                              absIdx,
-                              (v) => handleEditCommit(record, rk, col.key, v),
-                              // inline 모드에서 onCancel은 에디터를 닫지 않음 (항상 노출)
-                              editMode === 'inline' ? () => {} : () => setEditCell(null),
-                            )
-                          ) : editMode === 'inline' ? (
-                            // inline 모드 표준 입력 — handleEditCommit을 통해 validator도 실행
-                            <InlineEditInput
-                              key={`${rk}-${col.key}`}
-                              initialValue={rawValue}
-                              originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
-                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
-                            />
-                          ) : (
-                            <EditCell
-                              ref={editCellRef}
-                              initialValue={rawValue}
-                              onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
-                              onCancel={() => setEditCell(null)}
-                            />
-                          )
-                        ) : col.render ? (
-                          col.shouldCellUpdate ? (
-                            <GridCellInner
-                              col={col as ColumnType<Record<string, unknown>>}
-                              record={record as Record<string, unknown>}
-                              absIdx={absIdx}
-                              rawValue={rawValue}
-                            />
-                          ) : (
-                            displayNr?.children
-                          )
-                        ) : (
-                          (rawValue as ReactNode)
-                        )}
-                      </>
-                    )
-
-                    return (
-                      <td
-                        key={col.key}
-                        data-row={absIdx}
-                        data-col={colIdx}
-                        tabIndex={editMode === 'inline' && isActiveCell ? -1 : undefined}
-                        colSpan={displayNr?.props?.colSpan}
-                        rowSpan={displayNr?.props?.rowSpan}
-                        className={`${tdClass} ${cellProps.className ?? ''}`.trim()}
-                        style={{
-                          ...resolvedCellStyle?.style,
-                          ...cellProps.style,
-                          ...propStyleConfig?.row?.style,
-                          ...propStyleConfig?.cells?.[col.key]?.style,
-                          ...imperativeStyleConfig?.row?.style,
-                          ...imperativeStyleConfig?.cells?.[col.key]?.style,
-                          ...(colIdx === 0 && indentPx && !showTreeLines ? { paddingLeft: indentPx } : {}),
-                          ...(col.fixed === 'left'
-                            ? ({ '--sticky-left': `${col._left ?? 0}px` } as CSSProperties)
-                            : {}),
-                          ...(col.fixed === 'right'
-                            ? ({ '--sticky-right': `${col._right ?? 0}px` } as CSSProperties)
-                            : {}),
-                        }}
-                        onFocus={
-                          editMode === 'inline'
-                            ? () => {
-                                setActiveCellPos((prev) =>
-                                  prev?.rowAbsIdx === absIdx && prev?.colIdx === colIdx
-                                    ? prev
-                                    : { rowAbsIdx: absIdx, colIdx },
-                                )
-                                setFocusedKey((prev) => (prev === rk ? prev : rk))
-                                if (editableForRow) {
-                                  setEditCell((prev) =>
-                                    prev?.rowKey === rk && prev?.colKey === col.key
-                                      ? prev
-                                      : { rowKey: rk, colKey: col.key },
-                                  )
-                                } else {
-                                  setEditCell(null)
-                                }
-                              }
-                            : undefined
-                        }
-                        onClick={
-                          editMode === 'click'
-                            ? (e) => {
-                                e.stopPropagation()
-                                setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
-                                setFocusedKey(rk)
-                                onFocusedRowChange?.(record, absIdx)
-                                if (editableForRow) setEditCell({ rowKey: rk, colKey: col.key })
-                              }
-                            : isEditing
-                              ? (e) => e.stopPropagation()
-                              : editMode !== 'inline'
-                                ? () => {
-                                    setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
-                                    setFocusedKey(rk)
-                                  }
-                                : undefined
-                        }
-                        onDoubleClick={
-                          editMode === 'dblclick'
-                            ? () => handleCellActivate(rk, col.key, col, record, absIdx, colIdx)
-                            : undefined
-                        }
-                      >
-                        {showTreeLines && colIdx === 0 ? (
-                          <div
-                            className="datagrid__tree-cell-wrap"
-                            style={{ ['--grid-tree-indent' as string]: treeIndentVar } as CSSProperties}
-                          >
-                            {Array.from({ length: depth }, (_, lv) => (
-                              <span
-                                key={lv}
-                                className={
-                                  lv === depth - 1
-                                    ? 'datagrid__tree-line datagrid__tree-line--end'
-                                    : 'datagrid__tree-line'
-                                }
-                                aria-hidden
+                      const treeIndentVar = `${expandable?.indentSize ?? 15}px`
+                      const cellInner = (
+                        <>
+                          {isEditing ? (
+                            col.renderEditor ? (
+                              col.renderEditor(
+                                rawValue,
+                                record,
+                                absIdx,
+                                (v) => handleEditCommit(record, rk, col.key, v),
+                                // inline 모드에서 onCancel은 에디터를 닫지 않음 (항상 노출)
+                                editMode === 'inline' ? () => {} : () => setEditCell(null),
+                              )
+                            ) : editMode === 'inline' ? (
+                              // inline 모드 표준 입력 — handleEditCommit을 통해 validator도 실행
+                              <InlineEditInput
+                                key={`${rk}-${col.key}`}
+                                initialValue={rawValue}
+                                originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
+                                onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
                               />
-                            ))}
-                            <div className="datagrid__tree-cell-main">{cellInner}</div>
-                          </div>
-                        ) : (
-                          cellInner
-                        )}
-                        {/* 검증 오류 메시지 툴팁 */}
-                        {validateErr?.message && (
-                          <span className={`datagrid__validate-msg datagrid__validate-msg--${validateErr.status}`}>
-                            {validateErr.message}
-                          </span>
-                        )}
-                      </td>
-                    )
-                  })}
-                  {hasRowDelete && (
-                    <td
-                      className="datagrid__td datagrid__td--row-ops"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className="datagrid__row-delete-btn"
-                        title={rowOperations?.deleteLabel ?? '이 행 삭제'}
-                        aria-label={rowOperations?.deleteLabel ?? '이 행 삭제'}
-                        disabled={rowOperations?.getDeleteButtonProps?.(record)?.disabled}
-                        onClick={() => handleRowDeleteClick(rk, record)}
+                            ) : (
+                              <EditCell
+                                ref={editCellRef}
+                                initialValue={rawValue}
+                                onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
+                                onCancel={() => setEditCell(null)}
+                              />
+                            )
+                          ) : col.render ? (
+                            col.shouldCellUpdate ? (
+                              <GridCellInner
+                                col={col as ColumnType<Record<string, unknown>>}
+                                record={record as Record<string, unknown>}
+                                absIdx={absIdx}
+                                rawValue={rawValue}
+                              />
+                            ) : (
+                              displayNr?.children
+                            )
+                          ) : (
+                            (rawValue as ReactNode)
+                          )}
+                        </>
+                      )
+
+                      return (
+                        <td
+                          key={col.key}
+                          data-row={absIdx}
+                          data-col={colIdx}
+                          tabIndex={editMode === 'inline' && isActiveCell ? -1 : undefined}
+                          colSpan={displayNr?.props?.colSpan}
+                          rowSpan={displayNr?.props?.rowSpan}
+                          className={`${tdClass} ${cellProps.className ?? ''}`.trim()}
+                          style={{
+                            ...resolvedCellStyle?.style,
+                            ...cellProps.style,
+                            ...propStyleConfig?.row?.style,
+                            ...propStyleConfig?.cells?.[col.key]?.style,
+                            ...imperativeStyleConfig?.row?.style,
+                            ...imperativeStyleConfig?.cells?.[col.key]?.style,
+                            ...(colIdx === 0 && indentPx && !showTreeLines ? { paddingLeft: indentPx } : {}),
+                            ...(col.fixed === 'left'
+                              ? ({ '--sticky-left': `${col._left ?? 0}px` } as CSSProperties)
+                              : {}),
+                            ...(col.fixed === 'right'
+                              ? ({ '--sticky-right': `${col._right ?? 0}px` } as CSSProperties)
+                              : {}),
+                          }}
+                          onFocus={
+                            editMode === 'inline'
+                              ? () => {
+                                  setActiveCellPos((prev) =>
+                                    prev?.rowAbsIdx === absIdx && prev?.colIdx === colIdx
+                                      ? prev
+                                      : { rowAbsIdx: absIdx, colIdx },
+                                  )
+                                  setFocusedKey((prev) => (prev === rk ? prev : rk))
+                                  if (editableForRow) {
+                                    setEditCell((prev) =>
+                                      prev?.rowKey === rk && prev?.colKey === col.key
+                                        ? prev
+                                        : { rowKey: rk, colKey: col.key },
+                                    )
+                                  } else {
+                                    setEditCell(null)
+                                  }
+                                }
+                              : undefined
+                          }
+                          onClick={
+                            editMode === 'click'
+                              ? (e) => {
+                                  e.stopPropagation()
+                                  setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
+                                  setFocusedKey(rk)
+                                  onFocusedRowChange?.(record, absIdx)
+                                  if (editableForRow) setEditCell({ rowKey: rk, colKey: col.key })
+                                }
+                              : isEditing
+                                ? (e) => e.stopPropagation()
+                                : editMode !== 'inline'
+                                  ? () => {
+                                      setActiveCellPos({ rowAbsIdx: absIdx, colIdx })
+                                      setFocusedKey(rk)
+                                    }
+                                  : undefined
+                          }
+                          onDoubleClick={
+                            editMode === 'dblclick'
+                              ? () => handleCellActivate(rk, col.key, col, record, absIdx, colIdx)
+                              : undefined
+                          }
+                        >
+                          {showTreeLines && colIdx === 0 ? (
+                            <div
+                              className="datagrid__tree-cell-wrap"
+                              style={{ ['--grid-tree-indent' as string]: treeIndentVar } as CSSProperties}
+                            >
+                              {Array.from({ length: depth }, (_, lv) => (
+                                <span
+                                  key={lv}
+                                  className={
+                                    lv === depth - 1
+                                      ? 'datagrid__tree-line datagrid__tree-line--end'
+                                      : 'datagrid__tree-line'
+                                  }
+                                  aria-hidden
+                                />
+                              ))}
+                              <div className="datagrid__tree-cell-main">{cellInner}</div>
+                            </div>
+                          ) : (
+                            cellInner
+                          )}
+                          {/* 검증 오류 메시지 툴팁 */}
+                          {validateErr?.message && (
+                            <span className={`datagrid__validate-msg datagrid__validate-msg--${validateErr.status}`}>
+                              {validateErr.message}
+                            </span>
+                          )}
+                        </td>
+                      )
+                    })}
+                    {hasRowDelete && (
+                      <td
+                        className="datagrid__td datagrid__td--row-ops"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                        }}
                       >
-                        삭제
-                      </button>
-                    </td>
-                  )}
-                </BodyRowTag>
+                        <button
+                          type="button"
+                          className="datagrid__row-delete-btn"
+                          title={rowOperations?.deleteLabel ?? '이 행 삭제'}
+                          aria-label={rowOperations?.deleteLabel ?? '이 행 삭제'}
+                          disabled={rowOperations?.getDeleteButtonProps?.(record)?.disabled}
+                          onClick={() => handleRowDeleteClick(rk, record)}
+                        >
+                          삭제
+                        </button>
+                      </td>
+                    )}
+                  </BodyRowTag>
                   {hasExpandRender && isExpanded && rowExpandable && expandable?.expandedRowRender && (
                     <tr className="datagrid__tr datagrid__tr--expanded" key={`${rk}-exp`}>
                       <td className="datagrid__td datagrid__expand-cell" colSpan={tableBodyColSpan}>
