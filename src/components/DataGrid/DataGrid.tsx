@@ -104,6 +104,17 @@ function getExpandColumnWidth<T>(expandable: DataGridProps<T>['expandable'], isT
   return hasExpandRender || isTreeMode ? EXPAND_COL_WIDTH : 0
 }
 
+function getLeftFixedPrefix<T>(
+  expandable: DataGridProps<T>['expandable'],
+  rowSelection: DataGridProps<T>['rowSelection'],
+  isTreeMode: boolean,
+): number {
+  const expandWidth =
+    expandable?.fixed === 'left' || rowSelection?.fixed === 'left' ? getExpandColumnWidth(expandable, isTreeMode) : 0
+  const selectionWidth = rowSelection?.fixed === 'left' ? ROW_SELECTION_COL_WIDTH : 0
+  return expandWidth + selectionWidth
+}
+
 /** 그룹 헤더 2행째 th의 sticky-top — thead 기준 실제 tr 위치 (rowspan·separate border 반영) */
 function measureTheadRowTopOffsets(thead: HTMLTableSectionElement): number[] {
   const rows = Array.from(thead.querySelectorAll('tr'))
@@ -714,23 +725,9 @@ export function DataGrid<T = Record<string, unknown>>({
   const resolvedColumns = useMemo(() => {
     const cols = resolveFixedOffsets(leafColumns)
     const isTree = Boolean(expandable?.childrenColumnName) || Boolean(expandable?.treeDataFromFlatList)
-    const hasExpandRenderForOffsets = Boolean(expandable?.expandedRowRender && !isTree)
-    const expandWidth = hasExpandRenderForOffsets || isTree ? EXPAND_COL_WIDTH : 0
-    const prefix =
-      rowSelection?.fixed === 'left'
-        ? expandWidth + ROW_SELECTION_COL_WIDTH
-        : expandable?.fixed === 'left'
-          ? expandWidth
-          : 0
+    const prefix = getLeftFixedPrefix(expandable, rowSelection, isTree)
     return shiftLeftFixedColumnOffsets(cols, prefix)
-  }, [
-    leafColumns,
-    rowSelection?.fixed,
-    expandable?.fixed,
-    expandable?.childrenColumnName,
-    expandable?.treeDataFromFlatList,
-    expandable?.expandedRowRender,
-  ])
+  }, [leafColumns, rowSelection, expandable])
   const fixedBoundaryColumnKeys = useMemo(() => {
     let lastLeft: string | null = null
     let afterLastLeft: string | null = null

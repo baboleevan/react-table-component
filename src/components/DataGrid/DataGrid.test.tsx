@@ -391,6 +391,53 @@ describe('DataGrid', () => {
     expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '40px' })
   })
 
+  it('offsets fixed headers after a fixed expandedRowRender column', () => {
+    type Row3 = { id: number; a: string; b: string }
+    const cols: ColumnType<Row3>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a', fixed: 'left', width: 80 },
+      { key: 'b', title: 'B', dataIndex: 'b', width: 200 },
+    ]
+
+    render(
+      <DataGrid<Row3>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, a: 'x', b: 'y' }]}
+        scroll={{ x: 400 }}
+        expandable={{ expandedRowRender: () => <div>detail</div>, fixed: 'left' }}
+      />,
+    )
+
+    expect(document.querySelector('.datagrid__th.datagrid__expand-col')).toHaveStyle({ '--sticky-left': '0px' })
+    expect(screen.getByRole('columnheader', { name: 'A' })).toHaveStyle({ '--sticky-left': '40px' })
+    expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '40px' })
+  })
+
+  it('offsets fixed data columns after fixed expandable and selection columns', () => {
+    type TreeRow = { id: number; a: string; b: string; children?: TreeRow[] }
+    const cols: ColumnType<TreeRow>[] = [
+      { key: 'a', title: 'A', dataIndex: 'a', fixed: 'left', width: 80 },
+      { key: 'b', title: 'B', dataIndex: 'b', width: 200 },
+    ]
+    const onChange = vi.fn()
+
+    render(
+      <DataGrid<TreeRow>
+        rowKey="id"
+        columns={cols}
+        dataSource={[{ id: 1, a: 'x', b: 'y', children: [{ id: 2, a: 'child', b: 'z' }] }]}
+        scroll={{ x: 400 }}
+        expandable={{ childrenColumnName: 'children', fixed: 'left' }}
+        rowSelection={{ type: 'checkbox', selectedRowKeys: [], onChange, fixed: 'left' }}
+      />,
+    )
+
+    expect(document.querySelector('.datagrid__th.datagrid__expand-col')).toHaveStyle({ '--sticky-left': '0px' })
+    expect(document.querySelector('.datagrid__th.datagrid__selection-col')).toHaveStyle({ '--sticky-left': '40px' })
+    expect(screen.getByRole('columnheader', { name: 'A' })).toHaveStyle({ '--sticky-left': '80px' })
+    expect(screen.getByText('x').closest('td')).toHaveStyle({ '--sticky-left': '80px' })
+  })
+
   it('marks the last left fixed column so its boundary border remains visible', () => {
     type ThreeCol = { id: number; a: string; b: string; c: string }
     const cols: ColumnType<ThreeCol>[] = [
