@@ -17,6 +17,7 @@ import {
 } from 'react'
 import type {
   DataGridProps,
+  ColumnInputType,
   ColumnType,
   SortOrder,
   SorterResult,
@@ -102,6 +103,41 @@ function shiftLeftFixedColumnOffsets<T>(columns: InternalColumnType<T>[], prefix
 function getExpandColumnWidth<T>(expandable: DataGridProps<T>['expandable'], isTreeMode: boolean): number {
   const hasExpandRender = Boolean(expandable?.expandedRowRender && !isTreeMode)
   return hasExpandRender || isTreeMode ? EXPAND_COL_WIDTH : 0
+}
+
+function getAutoKeyDataIndexPart(dataIndex: ColumnType<unknown>['dataIndex']): string | null {
+  if (Array.isArray(dataIndex)) return dataIndex.map((v) => String(v)).join('.')
+  if (typeof dataIndex === 'string' && dataIndex.trim()) return dataIndex.trim()
+  return null
+}
+
+function getAutoKeyTitlePart(title: ReactNode): string | null {
+  if (typeof title === 'string' && title.trim()) return title.trim()
+  if (typeof title === 'number') return String(title)
+  return null
+}
+
+function normalizeColumnsWithKeys<T>(cols: ColumnInputType<T>[]): ColumnType<T>[] {
+  const generatedKeyCounts = new Map<string, number>()
+  const uniqueGeneratedKey = (base: string) => {
+    const count = generatedKeyCounts.get(base) ?? 0
+    generatedKeyCounts.set(base, count + 1)
+    return count === 0 ? base : `${base}__${count + 1}`
+  }
+  const walk = (columns: ColumnInputType<T>[], path: number[]): ColumnType<T>[] =>
+    columns.map((col, idx) => {
+      const explicitKey = typeof col.key === 'string' && col.key.trim() ? col.key.trim() : null
+      const dataIndexPart = getAutoKeyDataIndexPart(col.dataIndex)
+      const titlePart = getAutoKeyTitlePart(col.title)
+      const autoBase =
+        dataIndexPart && titlePart
+          ? `${dataIndexPart}__${titlePart}`
+          : dataIndexPart ?? titlePart ?? `column_${[...path, idx].join('_')}`
+      const key = explicitKey ?? uniqueGeneratedKey(autoBase)
+      const children = col.children?.length ? walk(col.children, [...path, idx]) : undefined
+      return { ...(col as Omit<ColumnType<T>, 'key' | 'children'>), key, ...(children ? { children } : {}) }
+    })
+  return walk(cols, [])
 }
 
 function getLeftFixedPrefix<T>(
@@ -714,7 +750,8 @@ export function DataGrid<T = Record<string, unknown>>({
   )
 
   useGridBreakpoint()
-  const effectiveColumns = useMemo(() => filterColumnsTree(columns), [columns])
+  const normalizedColumns = useMemo(() => normalizeColumnsWithKeys(columns), [columns])
+  const effectiveColumns = useMemo(() => filterColumnsTree(normalizedColumns), [normalizedColumns])
   const leafColumns = useMemo(() => getLeafColumns(effectiveColumns), [effectiveColumns])
   const allColumns = useMemo(() => flattenColumns(effectiveColumns), [effectiveColumns])
   const sortColumnsByKey = useMemo(() => {
@@ -782,7 +819,8 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const [internalFilters, setInternalFilters] = useState<TableFilters>(() => {
     const m: TableFilters = {}
-    for (const c of getLeafColumns(filterColumnsTree(columns))) {
+    const normalized = normalizeColumnsWithKeys(columns)
+    for (const c of getLeafColumns(filterColumnsTree(normalized))) {
       if (c.defaultFilteredValue?.length) m[c.key] = [...c.defaultFilteredValue]
     }
     return m
@@ -848,7 +886,12 @@ export function DataGrid<T = Record<string, unknown>>({
     if (!isTreeMode || sortRemote) return dataSource
     if (isFlatDepthTree) {
       const field = flatTreeOpts?.depthField ?? 'depth'
-      return applyFlatDepthTreeSort(dataSource, field, effectiveSortStates, allColumns as unknown as ColumnType<T>[])
+      return applyFlatDepthTreeSort(
+        dataSource,
+        field,
+        effectiveSortStates,
+        allColumns as unknown as ColumnType<T>[],
+      )
     }
     if (childrenColumnName) {
       return applyTreeSort(
@@ -1816,7 +1859,14 @@ export function DataGrid<T = Record<string, unknown>>({
 
   // ── 셀 편집 핸들러 ────────────────────────────
   const handleCellActivate = useCallback(
-    (rowK: string | number, colKey: string, col: ColumnType<T>, record: T, rowAbsIdx: number, colIdx: number) => {
+    (
+      rowK: string | number,
+      colKey: string,
+      col: ColumnType<T>,
+      record: T,
+      rowAbsIdx: number,
+      colIdx: number,
+    ) => {
       if (!isCellEditable(col, record, rowAbsIdx)) return
       setEditCell({ rowKey: rowK, colKey })
       setActiveCellPos({ rowAbsIdx, colIdx })

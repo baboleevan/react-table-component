@@ -9,7 +9,9 @@ export const Table = {
 
 export type {
   DataGridProps,
-  ColumnType,
+  ColumnInputType as ColumnType,
+  ColumnType as ResolvedColumnType,
+  ColumnInputType,
   RowOperationsConfig,
   RowSelectionConfig,
   RowSelectionCheckboxProps,

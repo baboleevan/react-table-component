@@ -293,6 +293,12 @@ export interface ColumnType<T = Record<string, unknown>> {
   validateTrigger?: 'onBlur' | 'manual'
 }
 
+/** 외부 입력용 컬럼 타입 (`key`는 생략 가능; 내부에서 자동 생성) */
+export type ColumnInputType<T = Record<string, unknown>> = Omit<ColumnType<T>, 'key' | 'children'> & {
+  key?: string
+  children?: ColumnInputType<T>[]
+}
+
 /** `filterDropdown` 렌더 prop 인자 */
 export interface ColumnFilterDropdownProps<T = Record<string, unknown>> {
   prefixCls?: string
@@ -488,7 +494,7 @@ export interface DataGridProps<T = Record<string, unknown>> {
   /** 데이터 레코드 배열 */
   dataSource?: T[]
   /** 컬럼 정의 배열 */
-  columns?: ColumnType<T>[]
+  columns?: ColumnInputType<T>[]
   /**
    * 행 키 필드명 또는 getter 함수.
    * 미지정 시 내부에서 `id`를 우선 사용하고, 없으면 자동 생성 키로 fallback 합니다.
