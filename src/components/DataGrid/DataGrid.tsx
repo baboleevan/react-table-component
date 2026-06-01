@@ -1880,6 +1880,7 @@ export function DataGrid<T = Record<string, unknown>>({
       setEditCell(null)
       const col = resolvedColumns.find((c) => c.key === colKey)
       const oldValue = getRecordValue(record, col?.dataIndex, colKey)
+      if (Object.is(oldValue, newValue) || String(oldValue ?? '') === String(newValue ?? '')) return
       const ck = `${String(rowK)}::${colKey}`
       if (!originalValuesRef.current.has(ck)) originalValuesRef.current.set(ck, oldValue)
       onCellEdit?.(rowK, colKey, newValue, record)
