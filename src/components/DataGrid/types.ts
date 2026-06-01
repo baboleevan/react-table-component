@@ -493,6 +493,12 @@ export interface StickyConfig {
 export interface DataGridProps<T = Record<string, unknown>> {
   /** 데이터 레코드 배열 */
   dataSource?: T[]
+  /**
+   * dirty 기준값(원본 스냅샷) 초기화 트리거.
+   * 값이 변경되면 내부 dirty baseline을 현재 `dataSource` 기준으로 재설정합니다.
+   * (예: API 재조회 완료 시 `setDirtyResetKey((k) => k + 1)`)
+   */
+  dirtyResetKey?: string | number
   /** 컬럼 정의 배열 */
   columns?: ColumnInputType<T>[]
   /**

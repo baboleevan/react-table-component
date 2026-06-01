@@ -684,6 +684,7 @@ const PaginationBar = memo(function PaginationBar({
 // ──────────────────────────────────────────────
 export function DataGrid<T = Record<string, unknown>>({
   dataSource = [],
+  dirtyResetKey,
   columns = [],
   rowKey,
   loading = false,
@@ -1058,6 +1059,29 @@ export function DataGrid<T = Record<string, unknown>>({
   rowKeyPropRef.current = rowKey
   onValidateChangeRef.current = onValidateChange
   rowSelectionRef.current = rowSelection
+
+  // 외부에서 완전 갱신을 명시한 경우 dirty baseline 초기화
+  const dirtyResetKeyRef = useRef<DataGridProps<T>['dirtyResetKey']>(dirtyResetKey)
+  useEffect(() => {
+    if (dirtyResetKeyRef.current === dirtyResetKey) return
+    dirtyResetKeyRef.current = dirtyResetKey
+    originalValuesRef.current.clear()
+  }, [dirtyResetKey])
+
+  // dirty 비교 기준 원본값 시드:
+  // - 최초 등장한 셀 키만 기록(기존 원본값 유지)
+  // - dirtyResetKey가 바뀌어 clear된 경우 현재 dataSource 기준으로 다시 채웁니다.
+  useEffect(() => {
+    for (let i = 0; i < dataSource.length; i++) {
+      const record = dataSource[i]
+      const rk = getRowKey(record, rowKey, i)
+      for (const col of resolvedColumns) {
+        const ck = `${String(rk)}::${col.key}`
+        if (originalValuesRef.current.has(ck)) continue
+        originalValuesRef.current.set(ck, getRecordValue(record, col.dataIndex, col.key))
+      }
+    }
+  }, [dataSource, resolvedColumns, rowKey, dirtyResetKey])
 
   // ── 검증 오류 Map (셀 룩업: `${rowKey}::${colKey}`) ──────────────
   const validateErrorMap = useMemo(() => {
