@@ -499,6 +499,12 @@ export interface DataGridProps<T = Record<string, unknown>> {
    * (예: API 재조회 완료 시 `setDirtyResetKey((k) => k + 1)`)
    */
   dirtyResetKey?: string | number
+  /**
+   * 스크롤 위치(상/좌) 초기화 트리거.
+   * 값이 변경되면 스크롤 컨테이너를 좌상단(0,0)으로 이동합니다.
+   * (예: 화면 재진입/탭 전환/재조회 완료 시 `setScrollResetKey((k) => k + 1)`)
+   */
+  scrollResetKey?: string | number
   /** 컬럼 정의 배열 */
   columns?: ColumnInputType<T>[]
   /**

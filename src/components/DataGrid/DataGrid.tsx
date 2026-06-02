@@ -685,6 +685,7 @@ const PaginationBar = memo(function PaginationBar({
 export function DataGrid<T = Record<string, unknown>>({
   dataSource = [],
   dirtyResetKey,
+  scrollResetKey,
   columns = [],
   rowKey,
   loading = false,
@@ -1152,6 +1153,19 @@ export function DataGrid<T = Record<string, unknown>>({
     rowHeight,
     overscan: 8,
   })
+
+  const resetScrollPosition = useCallback(() => {
+    const el = containerRef.current
+    if (!el) return
+    el.scrollTop = 0
+    el.scrollLeft = 0
+    resetScroll()
+  }, [containerRef, resetScroll])
+
+  // 최초 마운트 + scrollResetKey 변경 시 스크롤 위치를 좌상단으로 고정
+  useLayoutEffect(() => {
+    resetScrollPosition()
+  }, [resetScrollPosition, scrollResetKey])
 
   useLayoutEffect(() => {
     if (isPaginationDisabled) return
