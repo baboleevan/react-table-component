@@ -267,6 +267,7 @@ export interface ColumnType<T = Record<string, unknown>> {
    * 기본 텍스트 입력 대신 임의의 입력 컴포넌트
    * (Select, Checkbox, Radio, DatePicker 등)를 렌더링할 때 사용합니다.
    *
+   * @param originalValue 편집 시작 시 원본 값
    * @param value     현재 셀 값
    * @param record    전체 행 레코드
    * @param rowIndex  절대 행 인덱스
@@ -274,6 +275,7 @@ export interface ColumnType<T = Record<string, unknown>> {
    * @param onCancel  편집을 취소하고 에디터를 닫습니다
    */
   renderEditor?: (
+    originalValue: unknown,
     value: unknown,
     record: T,
     rowIndex: number,

@@ -248,7 +248,7 @@ const columns: ColumnType<Employee>[] = [
     title: '부서',
     dataIndex: 'dept',
     editable: true,
-    renderEditor: (value, _record, _idx, onCommit, onCancel) => (
+    renderEditor: (_originalValue, value, _record, _idx, onCommit, onCancel) => (
       <select
         autoFocus
         defaultValue={value as string}
@@ -270,7 +270,7 @@ const RADIO_CODE = `// Radio 에디터
   title: '등급',
   dataIndex: 'grade',
   editable: true,
-  renderEditor: (value, _record, _idx, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _record, _idx, onCommit, onCancel) => (
     <div onKeyDown={(e) => e.key === 'Escape' && onCancel()}>
       {GRADE_OPTIONS.map(o => (
         <label key={o.value}>
@@ -295,7 +295,7 @@ const CHECKBOX_CODE = `// Checkbox 에디터 (boolean → '활성'/'비활성' �
   title: '상태',
   dataIndex: 'status',
   editable: true,
-  renderEditor: (value, _record, _idx, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _record, _idx, onCommit, onCancel) => (
     <label>
       <input
         type="checkbox"
@@ -316,7 +316,7 @@ const NUMBER_CODE = `// Number 에디터 — <input type="number"> 숫자 전용
   title: '연봉(만)',
   dataIndex: 'salary',
   editable: true,
-  renderEditor: (value, _r, _i, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
     <NumberEditor value={value} min={1000} max={20000} step={100}
       onCommit={onCommit} onCancel={onCancel} />
   ),
@@ -328,7 +328,7 @@ const DATE_CODE = `// Date 에디터 — <input type="date"> 날짜 선택
   title: '입사일',
   dataIndex: 'joinDate',
   editable: true,
-  renderEditor: (value, _r, _i, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
     <DateEditor value={value} onCommit={onCommit} onCancel={onCancel} />
   ),
 }`
@@ -339,7 +339,7 @@ const TEXTAREA_CODE = `// Textarea 에디터 — <textarea> 여러 줄 입력
   title: '메모',
   dataIndex: 'memo',
   editable: true,
-  renderEditor: (value, _r, _i, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
     <TextareaEditor value={value} onCommit={onCommit} onCancel={onCancel} />
   ),
 }`
@@ -350,7 +350,7 @@ const RATING_CODE = `// Rating 에디터 — 별점 클릭 선택 (1~5)
   title: '점수',
   dataIndex: 'score',
   editable: true,
-  renderEditor: (value, _r, _i, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
     <RatingEditor value={value} onCommit={onCommit} onCancel={onCancel} />
   ),
 }`
@@ -359,25 +359,25 @@ const MIXED_CODE = `// renderEditor로 컬럼별 다른 에디터 적용 (전체
 const columns: ColumnType<Employee>[] = [
   { key: 'name',  title: '이름', dataIndex: 'name', editable: true },
   { key: 'dept',  title: '부서', dataIndex: 'dept', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <SelectEditor value={v} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'grade', title: '등급', dataIndex: 'grade', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <RadioEditor value={v} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'status', title: '재직여부', dataIndex: 'status', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <CheckboxEditor value={v} label="재직" onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'salary', title: '연봉(만)', dataIndex: 'salary', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <NumberEditor value={v} min={1000} max={20000} step={100} onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'joinDate', title: '입사일', dataIndex: 'joinDate', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <DateEditor value={v} onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'memo', title: '메모', dataIndex: 'memo', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <TextareaEditor value={v} onCommit={onCommit} onCancel={onCancel} /> },
   { key: 'score', title: '점수(별점)', dataIndex: 'score', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) =>
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) =>
       <RatingEditor value={v} onCommit={onCommit} onCancel={onCancel} /> },
 ]`
 
@@ -405,7 +405,7 @@ export function CustomEditorDemo() {
       dataIndex: 'dept',
       width: 110,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -415,7 +415,7 @@ export function CustomEditorDemo() {
       dataIndex: 'level',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -425,7 +425,7 @@ export function CustomEditorDemo() {
       dataIndex: 'contractType',
       width: 130,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={CONTRACT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -435,7 +435,7 @@ export function CustomEditorDemo() {
       dataIndex: 'position',
       width: 90,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor
           value={value}
           options={['사원', '주임', '대리', '과장', '차장', '부장', '이사'].map((v) => ({ label: v, value: v }))}
@@ -458,7 +458,7 @@ export function CustomEditorDemo() {
       width: 220,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <RadioEditor value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -476,7 +476,7 @@ export function CustomEditorDemo() {
       width: 120,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <CheckboxEditor value={value} label="재직" onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -497,7 +497,7 @@ export function CustomEditorDemo() {
       width: 130,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <NumberEditor value={value} min={1000} max={20000} step={100} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -508,7 +508,7 @@ export function CustomEditorDemo() {
       width: 120,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <NumberEditor value={value} min={0} max={5000} step={50} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -524,7 +524,7 @@ export function CustomEditorDemo() {
       dataIndex: 'joinDate',
       width: 160,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <DateEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -541,7 +541,7 @@ export function CustomEditorDemo() {
       width: 400,
       ellipsis: true,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <TextareaEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -558,7 +558,7 @@ export function CustomEditorDemo() {
       width: 200,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <RatingEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -583,7 +583,7 @@ export function CustomEditorDemo() {
       dataIndex: 'dept',
       width: 110,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -593,7 +593,7 @@ export function CustomEditorDemo() {
       dataIndex: 'level',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -603,7 +603,7 @@ export function CustomEditorDemo() {
       dataIndex: 'contractType',
       width: 130,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor value={value} options={CONTRACT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -614,7 +614,7 @@ export function CustomEditorDemo() {
       width: 200,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <RadioEditor value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -625,7 +625,7 @@ export function CustomEditorDemo() {
       width: 110,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <CheckboxEditor value={value} label="재직" onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -639,7 +639,7 @@ export function CustomEditorDemo() {
       dataIndex: 'position',
       width: 90,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectEditor
           value={value}
           options={['사원', '주임', '대리', '과장', '차장', '부장', '이사'].map((v) => ({ label: v, value: v }))}
@@ -655,7 +655,7 @@ export function CustomEditorDemo() {
       width: 120,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <NumberEditor value={value} min={1000} max={20000} step={100} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -666,7 +666,7 @@ export function CustomEditorDemo() {
       width: 110,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <NumberEditor value={value} min={0} max={5000} step={50} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -677,7 +677,7 @@ export function CustomEditorDemo() {
       width: 160,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <RatingEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -698,7 +698,7 @@ export function CustomEditorDemo() {
       dataIndex: 'joinDate',
       width: 130,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <DateEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -714,7 +714,7 @@ export function CustomEditorDemo() {
       ellipsis: true,
       fixed: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <TextareaEditor value={value} onCommit={onCommit} onCancel={onCancel} />
       ),
     },

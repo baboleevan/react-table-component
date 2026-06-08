@@ -58,7 +58,7 @@ const INLINE_SELECT_CODE = `// renderEditor를 지정하면 inline 모드에서�
 {
   key: 'dept', title: '부서', dataIndex: 'dept',
   editable: true,
-  renderEditor: (value, _r, _i, onCommit, onCancel) => (
+  renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
     <select
       defaultValue={value as string}
       onChange={(e) => onCommit(e.target.value)}
@@ -73,12 +73,12 @@ const INLINE_MIXED_CODE = `// 컬럼별로 다른 에디터 혼합 적용 (inlin
 const columns: ColumnType<Employee>[] = [
   { key: 'name',   title: '이름', dataIndex: 'name',  editable: true },
   { key: 'salary', title: '연봉', dataIndex: 'salary', editable: true,
-    renderEditor: (v,_,_i,onCommit) => (
+    renderEditor: (_originalValue,v,_,_i,onCommit) => (
       <input type="number" defaultValue={Number(v)} min={1000} max={20000}
         onBlur={(e) => onCommit(Number(e.target.value))} />
     )},
   { key: 'dept', title: '부서', dataIndex: 'dept', editable: true,
-    renderEditor: (v,_,_i,onCommit,onCancel) => (
+    renderEditor: (_originalValue,v,_,_i,onCommit,onCancel) => (
       <select defaultValue={v as string}
         onChange={(e) => onCommit(e.target.value)} onBlur={onCancel}>
         ...
@@ -117,7 +117,7 @@ export function InlineEditDemo() {
       dataIndex: 'dept',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -127,7 +127,7 @@ export function InlineEditDemo() {
       dataIndex: 'level',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -138,7 +138,7 @@ export function InlineEditDemo() {
       width: 110,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -149,7 +149,7 @@ export function InlineEditDemo() {
       width: 120,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={STATUS_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -170,7 +170,7 @@ export function InlineEditDemo() {
       width: 130,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit) => (
         <input
           className="inline-demo-number"
           type="number"
@@ -192,7 +192,7 @@ export function InlineEditDemo() {
       width: 110,
       align: 'right',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit) => (
         <input
           className="inline-demo-number"
           type="number"
@@ -213,7 +213,7 @@ export function InlineEditDemo() {
       dataIndex: 'dept',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={DEPT_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -223,7 +223,7 @@ export function InlineEditDemo() {
       dataIndex: 'level',
       width: 120,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={LEVEL_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -234,7 +234,7 @@ export function InlineEditDemo() {
       width: 100,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={GRADE_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
     },
@@ -245,7 +245,7 @@ export function InlineEditDemo() {
       width: 120,
       align: 'center',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <SelectCell value={value} options={STATUS_OPTIONS} onCommit={onCommit} onCancel={onCancel} />
       ),
       render: (v) => {
@@ -261,7 +261,7 @@ export function InlineEditDemo() {
       dataIndex: 'joinDate',
       width: 150,
       editable: true,
-      renderEditor: (value, _r, _i, onCommit, onCancel) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit, onCancel) => (
         <input
           className="inline-demo-date"
           type="date"

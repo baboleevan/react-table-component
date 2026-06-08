@@ -263,6 +263,25 @@ function hasUserTextSelectionIn(container: HTMLElement | null): boolean {
   return container.contains(range.commonAncestorContainer)
 }
 
+function isEditorElement(element: Element | null): boolean {
+  if (!(element instanceof Element)) return false
+  return Boolean(element.closest('input, select, textarea, [contenteditable="true"], .datagrid__editor'))
+}
+
+/** input/textarea의 value 내부 선택(드래그)도 그리드 복사를 가로채지 않도록 처리 */
+function hasFormControlSelectionIn(container: HTMLElement | null): boolean {
+  if (!container) return false
+  const active = document.activeElement
+  if (!(active instanceof HTMLElement) || !container.contains(active)) return false
+  if (active instanceof HTMLTextAreaElement) {
+    return (active.selectionStart ?? 0) !== (active.selectionEnd ?? 0)
+  }
+  if (active instanceof HTMLInputElement) {
+    return (active.selectionStart ?? 0) !== (active.selectionEnd ?? 0)
+  }
+  return false
+}
+
 function isRowSelectionDisabled<T>(
   record: T,
   rowSelection: { getCheckboxProps?: (record: T) => { disabled?: boolean } } | undefined,
@@ -1549,8 +1568,9 @@ export function DataGrid<T = Record<string, unknown>>({
   // ── 키보드 핸들러 (스크롤 컨테이너에 적용) ────
   const handleContainerKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLDivElement>) => {
-      const tag = (e.target as HTMLElement).tagName
-      const isEditorFocused = tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA'
+      const eventTarget = e.target instanceof Element ? e.target : null
+      const activeElement = document.activeElement instanceof Element ? document.activeElement : null
+      const isEditorFocused = isEditorElement(eventTarget) || isEditorElement(activeElement)
 
       // ── inline 모드: 에디터에 포커스된 상태에서 Tab 처리 ──
       if (editMode === 'inline' && isEditorFocused && e.key === 'Tab' && activeCellPos) {
@@ -1568,12 +1588,13 @@ export function DataGrid<T = Record<string, unknown>>({
         return
       }
 
-      // ── 클립보드: Ctrl/Cmd + C (에디터·셀 텍스트 선택 시 브라우저 기본 복사 유지) ──
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c' && !isEditorFocused) {
-        if (!hasUserTextSelectionIn(containerRef.current)) {
-          e.preventDefault()
-          void copyToClipboard({ scope: 'auto' })
+      // ── 클립보드: Ctrl/Cmd + C (에디터 포커스/선택 텍스트가 있으면 브라우저 기본 복사 유지) ──
+      if (e.key.toLowerCase() === 'c' && (e.ctrlKey || e.metaKey)) {
+        if (isEditorFocused || hasFormControlSelectionIn(containerRef.current) || hasUserTextSelectionIn(containerRef.current)) {
+          return
         }
+        e.preventDefault()
+        void copyToClipboard({ scope: 'auto' })
         return
       }
 
@@ -2755,6 +2776,7 @@ export function DataGrid<T = Record<string, unknown>>({
                           {isEditing ? (
                             col.renderEditor ? (
                               col.renderEditor(
+                                originalVal ?? rawValue,
                                 rawValue,
                                 record,
                                 absIdx,

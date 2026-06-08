@@ -28,7 +28,7 @@ describe('DataGrid', () => {
       title: '이름',
       dataIndex: 'name',
       editable: true,
-      renderEditor: (value, _r, _i, onCommit) => (
+      renderEditor: (_originalValue, value, _r, _i, onCommit) => (
         <input className="test-editor" defaultValue={String(value ?? '')} onChange={(e) => onCommit(e.target.value)} />
       ),
     }
@@ -518,6 +518,82 @@ describe('DataGrid', () => {
 
     vi.unstubAllGlobals()
     vi.restoreAllMocks()
+  })
+
+  it('Ctrl+C keeps browser copy when renderEditor input value is selected', () => {
+    const writeText = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
+
+    const editableCol: ColumnType<Row> = {
+      key: 'name',
+      title: '이름',
+      dataIndex: 'name',
+      editable: true,
+      renderEditor: (_originalValue, value) => <input defaultValue={String(value ?? '')} autoFocus />,
+    }
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[editableCol]}
+        dataSource={[{ id: 1, name: 'Alpha' }]}
+        pagination={false}
+        editMode="click"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('cell', { name: 'Alpha' }))
+    const editor = screen.getByRole('textbox') as HTMLInputElement
+    editor.focus()
+    editor.setSelectionRange(0, 3)
+    fireEvent.keyDown(editor, { key: 'c', ctrlKey: true })
+
+    expect(writeText).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('supports 6-argument renderEditor signature with originalValue', () => {
+    const renderEditorSpy = vi.fn()
+    const extendedRenderEditor = (
+      originalValue: unknown,
+      value: unknown,
+      _record: Row,
+      _idx: number,
+      onCommit: (newValue: unknown) => void,
+      onCancel: () => void,
+    ) => {
+      renderEditorSpy(originalValue, value)
+      return (
+        <input
+          defaultValue={String(value ?? '')}
+          autoFocus
+          onBlur={(e) => onCommit(e.target.value)}
+          onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+        />
+      )
+    }
+
+    const editableCol: ColumnType<Row> = {
+      key: 'name',
+      title: '이름',
+      dataIndex: 'name',
+      editable: true,
+      renderEditor: extendedRenderEditor,
+    }
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[editableCol]}
+        dataSource={[{ id: 1, name: 'Alpha' }]}
+        pagination={false}
+        editMode="click"
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('cell', { name: 'Alpha' }))
+    expect(renderEditorSpy).toHaveBeenCalled()
+    expect(renderEditorSpy).toHaveBeenCalledWith('Alpha', 'Alpha')
   })
 
   it('copyToClipboard copies page as TSV', async () => {
