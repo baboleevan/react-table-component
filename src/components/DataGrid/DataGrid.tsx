@@ -2742,8 +2742,10 @@ export function DataGrid<T = Record<string, unknown>>({
                       const isActiveCell = activeCellPos?.rowAbsIdx === absIdx && activeCellPos?.colIdx === colIdx
                       const validateErr = validateErrorMap.get(`${String(rk)}::${col.key}`)
                       const cellKey = `${String(rk)}::${col.key}`
-                      const originalVal = originalValuesRef.current.get(cellKey)
-                      const isDirty = originalVal !== undefined && String(rawValue ?? '') !== String(originalVal ?? '')
+                      // 동적 추가 레코드는 원본값이 undefined일 수 있으므로 baseline 존재 여부는 has()로 판정
+                      const hasOriginalVal = originalValuesRef.current.has(cellKey)
+                      const originalVal = hasOriginalVal ? originalValuesRef.current.get(cellKey) : rawValue
+                      const isDirty = hasOriginalVal && String(rawValue ?? '') !== String(originalVal ?? '')
 
                       const tdClass = [
                         'datagrid__td',
@@ -2776,7 +2778,7 @@ export function DataGrid<T = Record<string, unknown>>({
                           {isEditing ? (
                             col.renderEditor ? (
                               col.renderEditor(
-                                originalVal ?? rawValue,
+                                originalVal,
                                 rawValue,
                                 record,
                                 absIdx,
@@ -2789,7 +2791,7 @@ export function DataGrid<T = Record<string, unknown>>({
                               <InlineEditInput
                                 key={`${rk}-${col.key}`}
                                 initialValue={rawValue}
-                                originalValue={String(originalValuesRef.current.get(cellKey) ?? rawValue ?? '')}
+                                originalValue={String(originalVal ?? '')}
                                 onCommit={(v) => handleEditCommit(record, rk, col.key, v)}
                               />
                             ) : (

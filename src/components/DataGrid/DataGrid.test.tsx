@@ -596,6 +596,29 @@ describe('DataGrid', () => {
     expect(renderEditorSpy).toHaveBeenCalledWith('Alpha', 'Alpha')
   })
 
+  it('marks dirty for dynamically added records whose original value is undefined', () => {
+    const editableCol: ColumnType<Row> = { key: 'name', title: '이름', dataIndex: 'name', editable: true }
+    const grid = (data: Row[]) => (
+      <DataGrid<Row> rowKey="id" columns={[editableCol]} dataSource={data} pagination={false} />
+    )
+
+    const { rerender } = render(grid([{ id: 1, name: 'A' }]))
+
+    // 동적 추가 — name이 undefined인 신규 레코드 (baseline이 undefined로 시드됨)
+    rerender(grid([{ id: 1, name: 'A' }, { id: 2 } as Row]))
+
+    // 편집 커밋 후 부모가 dataSource를 갱신한 상황
+    rerender(
+      grid([
+        { id: 1, name: 'A' },
+        { id: 2, name: 'B' },
+      ]),
+    )
+
+    expect(screen.getByText('B').closest('td')).toHaveClass('dirty')
+    expect(screen.getByText('A').closest('td')).not.toHaveClass('dirty')
+  })
+
   it('copyToClipboard copies page as TSV', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined)
     vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } })
