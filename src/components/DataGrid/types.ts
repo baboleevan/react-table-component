@@ -204,8 +204,12 @@ export interface ColumnType<T = Record<string, unknown>> {
   render?: (value: unknown, record: T, index: number) => ColumnRenderValue
   /** 헤더 셀 인라인 스타일 */
   onHeaderCell?: (column: ColumnType<T>) => { style?: CSSProperties; className?: string }
-  /** 바디 셀 인라인 스타일 */
-  onCell?: (record: T, index: number) => { style?: CSSProperties; className?: string }
+  /**
+   * 바디 셀 인라인 스타일.
+   * `components.body.cell` 사용 시 추가 필드(`record`, `rowIndex` 등)를 반환하면
+   * 커스텀 셀 컴포넌트의 props로 그대로 전달됩니다.
+   */
+  onCell?: (record: T, index: number) => { style?: CSSProperties; className?: string } & Record<string, unknown>
   /** 정렬 가능한 컬럼 */
   sorter?: ColumnSorter<T>
   /** 제어 정렬 순서 */
@@ -479,6 +483,11 @@ export interface TableComponents {
   body?: {
     wrapper?: ComponentType<HTMLAttributes<HTMLTableSectionElement>>
     row?: ComponentType<HTMLAttributes<HTMLTableRowElement>>
+    /**
+     * 바디 셀 교체 — `onCell`이 반환한 추가 props도 함께 전달됩니다.
+     * 커스텀 셀의 추가 prop(`record`, `rowIndex` 등)은 **옵셔널**로 선언하세요.
+     * 예: `interface MyCellProps extends TdHTMLAttributes<HTMLTableCellElement> { record?: Row }`
+     */
     cell?: ComponentType<TdHTMLAttributes<HTMLTableCellElement>>
   }
 }

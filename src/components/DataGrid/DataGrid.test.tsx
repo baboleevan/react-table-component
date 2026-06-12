@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
-import { createRef } from 'react'
+import { createRef, type TdHTMLAttributes } from 'react'
 import { DataGrid } from '@/components/DataGrid'
 import type { ColumnType, DataGridHandle } from '@/components/DataGrid'
 
@@ -268,6 +268,45 @@ describe('DataGrid', () => {
 
     const cell = screen.getByText('A').closest('td')
     expect(cell).toHaveStyle({ backgroundColor: 'rgb(0, 0, 255)' })
+  })
+
+  it('components.body.cell renders custom cell with onCell extra props', () => {
+    type CustomCellProps = TdHTMLAttributes<HTMLTableCellElement> & {
+      record?: Row
+      rowIndex?: number
+    }
+    const CustomCell = ({ record, rowIndex, style, children, ...rest }: CustomCellProps) => (
+      <td
+        {...rest}
+        data-testid={`custom-cell-${record?.id}-${rowIndex}`}
+        style={record?.id === 2 ? { ...style, backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)' } : style}
+      >
+        {children}
+      </td>
+    )
+
+    render(
+      <DataGrid<Row>
+        rowKey="id"
+        columns={[
+          {
+            ...nameCol,
+            onCell: (record, index) => ({ record, rowIndex: index }),
+          },
+        ]}
+        dataSource={[
+          { id: 1, name: 'A' },
+          { id: 2, name: 'B' },
+        ]}
+        components={{ body: { cell: CustomCell } }}
+      />,
+    )
+
+    const normalCell = screen.getByTestId('custom-cell-1-0')
+    const styledCell = screen.getByTestId('custom-cell-2-1')
+    expect(normalCell).toHaveTextContent('A')
+    expect(styledCell).toHaveTextContent('B')
+    expect(styledCell).toHaveStyle({ backgroundColor: 'rgb(0, 0, 0)', color: 'rgb(255, 255, 255)' })
   })
 
   it('undoStyles and redoStyles toggle imperative cell style', () => {

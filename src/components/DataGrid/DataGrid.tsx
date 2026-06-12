@@ -14,6 +14,7 @@ import {
   type Key,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
+  type TdHTMLAttributes,
 } from 'react'
 import type {
   DataGridProps,
@@ -2291,6 +2292,7 @@ export function DataGrid<T = Record<string, unknown>>({
 
   const TableTag = components?.table ?? 'table'
   const BodyRowTag = components?.body?.row ?? 'tr'
+  const BodyCellTag = components?.body?.cell ?? 'td'
 
   // ── 루트 클래스 ────────────────────────────────
   const rootClass = [
@@ -2820,8 +2822,9 @@ export function DataGrid<T = Record<string, unknown>>({
                       )
 
                       return (
-                        <td
+                        <BodyCellTag
                           key={col.key}
+                          {...(cellProps as TdHTMLAttributes<HTMLTableCellElement>)}
                           data-row={absIdx}
                           data-col={colIdx}
                           tabIndex={editMode === 'inline' && isActiveCell ? -1 : undefined}
@@ -2915,7 +2918,7 @@ export function DataGrid<T = Record<string, unknown>>({
                               {validateErr.message}
                             </span>
                           )}
-                        </td>
+                        </BodyCellTag>
                       )
                     })}
                     {hasRowDelete && (
